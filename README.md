@@ -37,14 +37,14 @@ SignBee is a frontend-only React Native mobile app built with Expo. It lets indi
 | Blur | `expo-blur` (tab bar blur on iOS) |
 | Storage | `@react-native-async-storage/async-storage` |
 | Animation | `react-native-reanimated` |
-| Package Mgr | pnpm workspaces (monorepo) |
+| Package Mgr | npm (Node.js ≥ 20) |
 
 ---
 
 ## Project Structure
 
 ```
-artifacts/signbee/
+SignBEE/
 ├── app/                        # All screens (Expo Router file-based)
 │   ├── _layout.tsx             # Root layout — fonts, providers, stack navigator
 │   ├── index.tsx               # Splash / entry screen
@@ -82,11 +82,6 @@ artifacts/signbee/
 │
 ├── assets/
 │   └── images/                 # PNG assets (icons, rings, dots, characters)
-│
-├── scripts/
-│   └── build.js                # Expo production build script
-├── server/
-│   └── serve.js                # Static file server for production build
 │
 ├── app.json                    # Expo config (name, slug, splash, plugins)
 ├── babel.config.js             # babel-preset-expo
@@ -127,7 +122,7 @@ booking                — In-person or Virtual booking form
 ```
 expo-router ~6.0.17
 ```
-File-based routing powered by React Navigation under the hood. Every file in `app/` becomes a route automatically.
+File-based routing powered by React Navigation. Every file in `app/` becomes a route automatically.
 
 ### Storage & State
 ```
@@ -145,7 +140,7 @@ react-native-keyboard-controller 1.18.5
 ```
 @expo-google-fonts/inter ^0.4.0
 ```
-Four weights loaded at startup: Regular (400), Medium (500), SemiBold (600), Bold (700). Used via `fontFamily: "Inter_600SemiBold"` in every StyleSheet.
+Four weights loaded at startup: Regular (400), Medium (500), SemiBold (600), Bold (700).
 
 ### Tab Bar
 ```
@@ -167,10 +162,9 @@ react-native-safe-area-context ~5.6.0
 
 ### Prerequisites
 
-- **Node.js** ≥ 20
-- **pnpm** ≥ 9 — `npm install -g pnpm`
-- **Expo Go** app on your phone (iOS or Android) for quick preview
-- **iOS Simulator** or **Android Emulator** (optional, for local dev)
+- **Node.js** ≥ 20 — [nodejs.org](https://nodejs.org)
+- **npm** ≥ 10 (comes with Node.js — no extra install needed)
+- **Expo Go** app on your phone — [iOS](https://apps.apple.com/app/expo-go/id982107779) · [Android](https://play.google.com/store/apps/details?id=host.exp.exponent)
 
 ### Steps
 
@@ -179,72 +173,50 @@ react-native-safe-area-context ~5.6.0
 git clone https://github.com/SagsMan/SignBEE.git
 cd SignBEE
 
-# 2. Install dependencies
-pnpm install
+# 2. Install all dependencies
+npm install
 
 # 3. Start the dev server
-pnpm dev
+npm start
 ```
 
-> If you cloned the repo standalone (outside a pnpm workspace), replace `pnpm` with `npx expo` for the dev command:
-> ```bash
-> npm install
-> npx expo start
-> ```
+Scan the QR code that appears in your terminal with:
+- **iOS** — your Camera app
+- **Android** — the Expo Go app
 
 ---
 
 ## Running the App
 
-### On your phone (Expo Go)
-1. Run `pnpm dev` (or `npx expo start`)
-2. Scan the QR code with:
-   - **iOS** — Camera app
-   - **Android** — Expo Go app
-
-### On iOS Simulator
-```bash
-npx expo start --ios
-```
-
-### On Android Emulator
-```bash
-npx expo start --android
-```
-
-### In the browser (web preview)
-```bash
-npx expo start --web
-```
-
-### Environment variables used at runtime
-| Variable | Purpose |
+| Command | What it does |
 |---|---|
-| `PORT` | Dev server port (set by Replit workflow) |
-| `EXPO_PUBLIC_DOMAIN` | Public domain for deep links |
-| `REPLIT_EXPO_DEV_DOMAIN` | Expo tunnel domain on Replit |
+| `npm start` | Start Expo dev server (scan QR with phone) |
+| `npm run android` | Open on Android emulator / connected device |
+| `npm run ios` | Open on iOS simulator (macOS only) |
+| `npm run web` | Open in the browser |
+| `npm run typecheck` | Run TypeScript type checks |
 
 ---
 
 ## State Management
 
-Everything lives in `context/AppContext.tsx`. No external state library — just React Context + `useReducer`-style `useState` + AsyncStorage.
+Everything lives in `context/AppContext.tsx` — React Context + `useState` + AsyncStorage. No external state library, no backend.
 
 ```
 AppContext provides:
   user              — logged-in user (name, email, phone, role)
   isAuthenticated   — boolean
-  hasOnboarded      — boolean (persisted)
+  hasOnboarded      — boolean (persisted across launches)
   bookings          — Booking[]  (persisted)
   interpreters      — Interpreter[]  (5 mock entries, Nigerian context)
 
-  login(email, password)             → sets user, marks authenticated
-  register(name, email, ...)         → creates user, marks authenticated
-  logout()                           → clears user + bookings from storage
-  setHasOnboarded(true)              → persisted, skips onboarding next launch
-  addBooking(booking)                → appends to bookings list, persisted
-  cancelBooking(id)                  → sets status → "cancelled", persisted
-  updateUser(data)                   → merges patch into user, persisted
+  login(email, password)          → sets user, marks authenticated
+  register(name, email, ...)      → creates user, marks authenticated
+  logout()                        → clears user + bookings from storage
+  setHasOnboarded(true)           → persisted, skips onboarding next launch
+  addBooking(booking)             → appends to bookings list, persisted
+  cancelBooking(id)               → sets status → "cancelled", persisted
+  updateUser(data)                → merges patch into user, persisted
 ```
 
 ---
