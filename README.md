@@ -14,6 +14,9 @@ SignBee is a frontend-only React Native mobile app built with Expo. It lets indi
 - [Core Libraries](#core-libraries)
 - [Installation](#installation)
 - [Running the App](#running-the-app)
+- [Open in Android Studio](#open-in-android-studio)
+- [Build APK (Android)](#build-apk-android)
+- [Build AAB for Google Play](#build-aab-for-google-play)
 - [State Management](#state-management)
 - [Design Tokens](#design-tokens)
 
@@ -195,6 +198,163 @@ Scan the QR code that appears in your terminal with:
 | `npm run ios` | Open on iOS simulator (macOS only) |
 | `npm run web` | Open in the browser |
 | `npm run typecheck` | Run TypeScript type checks |
+
+---
+
+## Open in Android Studio
+
+Follow these steps to open SignBee as a native Android project inside Android Studio.
+
+### Step 1 — Install prerequisites
+
+- **Android Studio** (latest stable) — [developer.android.com/studio](https://developer.android.com/studio)
+  During setup select: **Android SDK**, **Android SDK Platform**, **Android Virtual Device**
+- **Java Development Kit (JDK) 17** — bundled inside Android Studio; no separate install needed
+- **Node.js** ≥ 20 and **npm** ≥ 10
+
+### Step 2 — Add the android folder (prebuild)
+
+Expo manages the `android/` folder via prebuild. Run this once to generate it:
+
+```bash
+# Install dependencies first (if you haven't already)
+npm install
+
+# Generate the native android/ folder
+npx expo prebuild --platform android
+```
+
+> This creates an `android/` folder at the root of the project. Do **not** edit it by hand — re-run `prebuild` after changing `app.json` or adding native plugins.
+
+### Step 3 — Open in Android Studio
+
+1. Launch **Android Studio**
+2. Click **Open** (or **File → Open**)
+3. Navigate to your cloned `SignBEE/` folder and select the `android/` subfolder
+4. Click **OK** — Android Studio will sync Gradle (this takes 2–5 minutes the first time)
+
+### Step 4 — Run on an emulator or device
+
+**Emulator:**
+1. In Android Studio click **Device Manager** (right sidebar)
+2. Click **Create Device** → choose a phone (e.g. Pixel 8) → select API 35 system image → Finish
+3. Press the green **Run ▶** button
+
+**Physical device:**
+1. On your Android phone go to **Settings → About Phone** → tap **Build Number** 7 times to enable Developer Mode
+2. Enable **USB Debugging** in **Settings → Developer Options**
+3. Connect via USB — your device appears in the device dropdown
+4. Press the green **Run ▶** button
+
+---
+
+## Build APK (Android)
+
+An APK is a single installable file you can share directly (sideload). Use this for testing or sharing with testers.
+
+### Option A — EAS Build (recommended, cloud, no setup)
+
+EAS (Expo Application Services) builds the APK in the cloud — no Android Studio or Java needed locally.
+
+```bash
+# Step 1 — Install EAS CLI globally
+npm install -g eas-cli
+
+# Step 2 — Log in to your Expo account (create one free at expo.dev)
+eas login
+
+# Step 3 — Configure EAS for this project (only once)
+eas build:configure
+
+# Step 4 — Build the APK
+eas build -p android --profile preview
+```
+
+When the build finishes (≈ 5–10 min) EAS gives you a download link for the `.apk` file.
+
+> The `preview` profile produces an APK. Add this to `eas.json` if it does not exist:
+> ```json
+> {
+>   "build": {
+>     "preview": {
+>       "android": {
+>         "buildType": "apk"
+>       }
+>     }
+>   }
+> }
+> ```
+
+### Option B — Local APK build (requires Android Studio)
+
+```bash
+# Step 1 — Generate the android/ folder (skip if already done)
+npx expo prebuild --platform android
+
+# Step 2 — Build a debug APK
+cd android
+./gradlew assembleDebug
+
+# The APK is at:
+# android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Copy `app-debug.apk` to your phone and install it directly.
+
+---
+
+## Build AAB for Google Play
+
+An **AAB** (Android App Bundle) is the format required by the Google Play Store. It is smaller than an APK because Play optimises delivery per device.
+
+### Option A — EAS Build (recommended, cloud)
+
+```bash
+# Step 1 — Install EAS CLI (skip if already installed)
+npm install -g eas-cli
+
+# Step 2 — Log in
+eas login
+
+# Step 3 — Build the AAB for production
+eas build -p android --profile production
+```
+
+EAS builds an `.aab` file and provides a download link (≈ 5–15 min). Upload it directly to the **Google Play Console → Production track**.
+
+> The default `production` profile already produces an AAB. Your `eas.json` should look like:
+> ```json
+> {
+>   "build": {
+>     "production": {
+>       "android": {
+>         "buildType": "app-bundle"
+>       }
+>     },
+>     "preview": {
+>       "android": {
+>         "buildType": "apk"
+>       }
+>     }
+>   }
+> }
+> ```
+
+### Option B — Local AAB build (requires Android Studio)
+
+```bash
+# Step 1 — Generate android/ folder (skip if already done)
+npx expo prebuild --platform android
+
+# Step 2 — Build a release AAB
+cd android
+./gradlew bundleRelease
+
+# The AAB is at:
+# android/app/build/outputs/bundle/release/app-release.aab
+```
+
+> **Note:** A release AAB must be signed with a keystore before uploading to the Play Store. In Android Studio go to **Build → Generate Signed Bundle / APK** and follow the wizard to create or use an existing keystore.
 
 ---
 
