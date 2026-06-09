@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "SignBee",
+    "slug": "signbee",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "signbee",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#AAFF00"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.signbee.app"
+    },
+    "android": {
+      "backgroundColor": "#AAFF00",
+      "package": "com.signbee.app"
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
