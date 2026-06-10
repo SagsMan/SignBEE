@@ -15,11 +15,25 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.signbee.app"
+      "bundleIdentifier": "com.signbee.app",
+      "buildNumber": "1"
     },
     "android": {
       "backgroundColor": "#AAFF00",
-      "package": "com.signbee.app"
+      "package": "com.signbee.app",
+      "versionCode": 1,
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "minSdkVersion": 24,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#AAFF00"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.VIBRATE"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -35,6 +49,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
     }
   }
 }
