@@ -95,12 +95,7 @@ export default function LoginScreen() {
 
       <TouchableOpacity
         style={styles.forgotBtn}
-        onPress={() =>
-          Alert.alert(
-            "Reset Password",
-            "Check your email for reset instructions.",
-          )
-        }
+        onPress={() => router.push("/forgot-password")}
       >
         <Text style={[styles.forgotText, { color: colors.navyDark }]}>
           Forgot password?
@@ -132,6 +127,15 @@ export default function LoginScreen() {
           <Feather name="aperture" size={22} color={colors.foreground} />
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={styles.waitlistBtn}
+        onPress={() => router.push("/waitlist")}
+      >
+        <Text style={[styles.waitlistText, { color: colors.navyDark }]}>
+          Join the SignBee waitlist
+        </Text>
+      </TouchableOpacity>
     </KeyboardAwareScrollView>
   );
 }
@@ -172,4 +176,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  waitlistBtn: { alignItems: "center", marginTop: 24, padding: 8 },
+  waitlistText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });

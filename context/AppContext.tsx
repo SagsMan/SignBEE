@@ -10,6 +10,8 @@ export interface User {
   phone: string;
   role: UserRole;
   avatar?: string;
+  isEmailVerified?: boolean;
+  locationPermission?: "granted" | "denied" | "skipped";
 }
 
 export interface Interpreter {
@@ -51,16 +53,24 @@ interface AppState {
   hasOnboarded: boolean;
   bookings: Booking[];
   interpreters: Interpreter[];
+  pendingVerificationEmail: string | null;
 }
 
 interface AppContextType extends AppState {
   login: (email: string, password: string) => Promise<boolean>;
   register: (name: string, email: string, phone: string, password: string, role: UserRole) => Promise<boolean>;
-  logout: () => void;
-  setHasOnboarded: (val: boolean) => void;
-  addBooking: (booking: Omit<Booking, "id">) => void;
-  cancelBooking: (id: string) => void;
-  updateUser: (data: Partial<User>) => void;
+  logout: () => Promise<void>;
+  setHasOnboarded: (val: boolean) => Promise<void>;
+  addBooking: (booking: Omit<Booking, "id">) => Promise<void>;
+  cancelBooking: (id: string) => Promise<void>;
+  updateUser: (data: Partial<User>) => Promise<void>;
+  verifyEmail: (email: string) => Promise<boolean>;
+  requestPasswordReset: (email: string) => Promise<boolean>;
+  completePasswordReset: (email: string) => Promise<void>;
+  joinWaitlist: (name: string, email: string) => Promise<void>;
+  setLocationPermission: (
+    status: "granted" | "denied" | "skipped",
+  ) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -133,6 +143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasOnboarded, setHasOnboardedState] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
 
   useEffect(() => {
     loadState();
@@ -146,8 +157,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         AsyncStorage.getItem("bookings"),
       ]);
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
-        setIsAuthenticated(true);
+        const parsedUser = JSON.parse(storedUser) as User;
+        setUser(parsedUser);
+        if (parsedUser.isEmailVerified === false) {
+          setPendingVerificationEmail(parsedUser.email);
+        } else {
+          setIsAuthenticated(true);
+        }
       }
       if (storedOnboarded === "true") setHasOnboardedState(true);
       if (storedBookings) setBookings(JSON.parse(storedBookings));
@@ -161,10 +177,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       email,
       phone: "+234 813 000 0000",
       role: "individual",
+      isEmailVerified: true,
     };
     setUser(mockUser);
     setIsAuthenticated(true);
+    setPendingVerificationEmail(null);
     await AsyncStorage.setItem("user", JSON.stringify(mockUser));
+    await AsyncStorage.removeItem("pendingVerificationEmail");
     return true;
   };
 
@@ -181,17 +200,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       email,
       phone,
       role,
+      isEmailVerified: false,
     };
     setUser(newUser);
-    setIsAuthenticated(true);
+    setIsAuthenticated(false);
+    setPendingVerificationEmail(email);
     await AsyncStorage.setItem("user", JSON.stringify(newUser));
+    await AsyncStorage.setItem("pendingVerificationEmail", email);
     return true;
   };
 
   const logout = async () => {
     setUser(null);
     setIsAuthenticated(false);
-    await AsyncStorage.multiRemove(["user", "bookings"]);
+    setPendingVerificationEmail(null);
+    await AsyncStorage.multiRemove([
+      "user",
+      "bookings",
+      "pendingVerificationEmail",
+      "passwordResetEmail",
+    ]);
     setBookings([]);
   };
 
@@ -225,6 +253,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem("user", JSON.stringify(updated));
   };
 
+  const verifyEmail = async (email: string): Promise<boolean> => {
+    if (!user || user.email.toLowerCase() !== email.trim().toLowerCase()) {
+      return false;
+    }
+
+    const verifiedUser = { ...user, isEmailVerified: true };
+    setUser(verifiedUser);
+    setIsAuthenticated(true);
+    setPendingVerificationEmail(null);
+    await AsyncStorage.setItem("user", JSON.stringify(verifiedUser));
+    await AsyncStorage.removeItem("pendingVerificationEmail");
+    return true;
+  };
+
+  const requestPasswordReset = async (email: string): Promise<boolean> => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes("@")) return false;
+    await AsyncStorage.setItem("passwordResetEmail", normalizedEmail);
+    return true;
+  };
+
+  const completePasswordReset = async (email: string): Promise<void> => {
+    await AsyncStorage.removeItem("passwordResetEmail");
+    if (user?.email.toLowerCase() === email.trim().toLowerCase()) {
+      await AsyncStorage.setItem("passwordResetCompleted", "true");
+    }
+  };
+
+  const joinWaitlist = async (name: string, email: string): Promise<void> => {
+    const existing = await AsyncStorage.getItem("waitlistEntries");
+    const entries = existing ? JSON.parse(existing) : [];
+    entries.push({
+      id: Date.now().toString(),
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      createdAt: new Date().toISOString(),
+    });
+    await AsyncStorage.setItem("waitlistEntries", JSON.stringify(entries));
+  };
+
+  const setLocationPermission = async (
+    status: "granted" | "denied" | "skipped",
+  ): Promise<void> => {
+    if (!user) return;
+    const updated = { ...user, locationPermission: status };
+    setUser(updated);
+    await AsyncStorage.setItem("user", JSON.stringify(updated));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -233,6 +310,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         hasOnboarded,
         bookings,
         interpreters: MOCK_INTERPRETERS,
+        pendingVerificationEmail,
         login,
         register,
         logout,
@@ -240,6 +318,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addBooking,
         cancelBooking,
         updateUser,
+        verifyEmail,
+        requestPasswordReset,
+        completePasswordReset,
+        joinWaitlist,
+        setLocationPermission,
       }}
     >
       {children}

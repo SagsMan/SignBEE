@@ -6,7 +6,7 @@ import { useApp } from "@/context/AppContext";
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { isAuthenticated, hasOnboarded } = useApp();
+  const { isAuthenticated, hasOnboarded, pendingVerificationEmail } = useApp();
   const scale = useRef(new Animated.Value(0.7)).current;
   const opacity = useRef(new Animated.Value(0)).current;
 
@@ -26,7 +26,12 @@ export default function SplashScreen() {
     ]).start();
 
     const timer = setTimeout(() => {
-      if (isAuthenticated) {
+      if (pendingVerificationEmail) {
+        router.replace({
+          pathname: "/verify-account",
+          params: { email: pendingVerificationEmail },
+        });
+      } else if (isAuthenticated) {
         router.replace("/(tabs)");
       } else if (hasOnboarded) {
         router.replace("/login");
@@ -36,7 +41,7 @@ export default function SplashScreen() {
     }, 2200);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [hasOnboarded, isAuthenticated, pendingVerificationEmail, router]);
 
   return (
     <View style={styles.container}>

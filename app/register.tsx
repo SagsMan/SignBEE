@@ -8,14 +8,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import InputField from "@/components/InputField";
 import PrimaryButton from "@/components/PrimaryButton";
 import { useApp } from "@/context/AppContext";
-import type { UserRole } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
 export default function RegisterScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { role } = useLocalSearchParams<{ role: UserRole }>();
+  const { role } = useLocalSearchParams<{
+    role?: "individual" | "interpreter";
+  }>();
   const { register } = useApp();
 
   const [name, setName] = useState("");
@@ -45,7 +46,10 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await register(name, email, phone, password, role || "individual");
-      router.replace("/(tabs)");
+      router.replace({
+        pathname: "/verify-account",
+        params: { email },
+      });
     } catch {
       Alert.alert("Error", "Registration failed. Please try again.");
     } finally {
@@ -168,9 +172,18 @@ export default function RegisterScreen() {
           style={[styles.socialBtn, { borderColor: colors.border }]}
           activeOpacity={0.8}
         >
-          <Feather name="apple" size={22} color={colors.foreground} />
+          <Feather name="smartphone" size={22} color={colors.foreground} />
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={styles.waitlistBtn}
+        onPress={() => router.push("/waitlist")}
+      >
+        <Text style={[styles.waitlistText, { color: colors.navyDark }]}>
+          Join the SignBee waitlist instead
+        </Text>
+      </TouchableOpacity>
     </KeyboardAwareScrollView>
   );
 }
@@ -233,4 +246,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  waitlistBtn: { alignItems: "center", marginTop: 24, padding: 8 },
+  waitlistText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });

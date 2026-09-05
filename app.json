@@ -45,7 +45,13 @@
           "origin": "https://replit.com/"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow SignBee to use your location to find nearby interpreters."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
