@@ -1,4 +1,8 @@
-# SignBee 🐝
+# SignBee
+
+<p align="center">
+  <img src="./assets/images/icon.png" alt="SignBee official app logo" width="140" />
+</p>
 
 **Connect deaf individuals with certified sign language interpreters — instantly.**
 
