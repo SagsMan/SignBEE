@@ -29,6 +29,7 @@ export default function HomeScreen() {
     toggleFavorite,
     walletBalance,
     availableBalance,
+    unreadNotificationCount,
   } = useApp();
 
   const [search, setSearch] = useState("");
@@ -77,9 +78,12 @@ export default function HomeScreen() {
         </View>
         <TouchableOpacity
           style={[styles.notifBtn, { backgroundColor: colors.muted }]}
-          onPress={() => router.push("/(tabs)/messages")}
+          onPress={() => router.push("/notification-center")}
         >
           <Feather name="bell" size={20} color={colors.navyDark} />
+          {unreadNotificationCount > 0 ? (
+            <View style={[styles.notificationDot, { backgroundColor: colors.destructive }]} />
+          ) : null}
         </TouchableOpacity>
       </View>
 
@@ -288,6 +292,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
+  },
+  notificationDot: {
+    position: "absolute",
+    top: 8,
+    right: 9,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
   },
   modeSwitch: {
     flexDirection: "row",

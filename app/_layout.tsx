@@ -51,6 +51,10 @@ function RootLayoutNav() {
       <Stack.Screen name="payment-pin" />
       <Stack.Screen name="transactions" />
       <Stack.Screen name="transaction/[id]" />
+      <Stack.Screen name="conversation/[id]" />
+      <Stack.Screen name="notification-center" />
+      <Stack.Screen name="incoming-call" />
+      <Stack.Screen name="call/[id]" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="interpreter/[id]" />
     </Stack>

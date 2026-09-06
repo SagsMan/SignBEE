@@ -88,6 +88,59 @@ export interface Transaction {
 
 export interface PendingBooking extends Omit<Booking, "id"> {}
 
+export type MessageType = "text" | "image";
+export type MessageStatus = "sending" | "sent" | "read";
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  receiverId: string;
+  type: MessageType;
+  content?: string;
+  attachmentUri?: string;
+  timestamp: string;
+  status: MessageStatus;
+  isRead: boolean;
+}
+
+export interface Conversation {
+  id: string;
+  participantId: string;
+  participantName: string;
+  participantAvatar?: "male" | "female";
+  participantRole: "Interpreter" | "SignBee";
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unreadCount: number;
+}
+
+export type NotificationType = "message" | "booking" | "payment" | "system" | "call";
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  timestamp: string;
+  isRead: boolean;
+  relatedId?: string;
+  target?: "conversation" | "booking" | "wallet" | "transaction" | "call";
+}
+
+export type CallType = "audio" | "video";
+export type CallStatus = "ringing" | "accepted" | "declined";
+
+export interface IncomingCall {
+  id: string;
+  type: CallType;
+  callerId: string;
+  callerName: string;
+  callerAvatar?: "male" | "female";
+  status: CallStatus;
+  startedAt: string;
+}
+
 interface AppState {
   user: User | null;
   isAuthenticated: boolean;
@@ -107,6 +160,12 @@ interface AppState {
   savedCards: SavedCard[];
   transactions: Transaction[];
   paymentPinSet: boolean;
+  conversations: Conversation[];
+  messages: Message[];
+  notifications: AppNotification[];
+  incomingCall: IncomingCall | null;
+  unreadMessageCount: number;
+  unreadNotificationCount: number;
 }
 
 interface AppContextType extends AppState {
@@ -144,6 +203,19 @@ interface AppContextType extends AppState {
   ) => Promise<{ transactionId: string; reference: string }>;
   setPaymentPin: (pin: string) => Promise<boolean>;
   validatePaymentPin: (pin: string) => Promise<boolean>;
+  sendMessage: (
+    conversationId: string,
+    type: MessageType,
+    content?: string,
+    attachmentUri?: string,
+  ) => Promise<Message>;
+  markConversationRead: (conversationId: string) => Promise<void>;
+  startIncomingCall: (call: Omit<IncomingCall, "id" | "status" | "startedAt">) => Promise<string>;
+  acceptIncomingCall: () => Promise<string | null>;
+  declineIncomingCall: () => Promise<void>;
+  clearIncomingCall: () => Promise<void>;
+  markNotificationRead: (notificationId: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -241,6 +313,100 @@ const MOCK_INTERPRETERS: Interpreter[] = [
   },
 ];
 
+function getDefaultConversations(): Conversation[] {
+  return MOCK_INTERPRETERS.slice(0, 3).map((interpreter, index) => ({
+    id: `conversation-${interpreter.id}`,
+    participantId: interpreter.id,
+    participantName: interpreter.name,
+    participantAvatar: interpreter.avatar === "male" ? "male" : "female",
+    participantRole: "Interpreter",
+    lastMessage:
+      index === 0
+        ? "Hello! I'm available for your booking tomorrow."
+        : index === 1
+          ? "Thanks for booking. Looking forward to working with you!"
+          : "Please let me know if you have any special requirements.",
+    lastMessageAt: new Date(Date.now() - index * 60 * 60 * 1000).toISOString(),
+    unreadCount: index === 0 ? 2 : 0,
+  }));
+}
+
+function getDefaultMessages(conversations: Conversation[]): Message[] {
+  const first = conversations[0];
+  const second = conversations[1];
+  const now = Date.now();
+  return [
+    {
+      id: "message-1",
+      conversationId: first.id,
+      senderId: first.participantId,
+      receiverId: "current-user",
+      type: "text",
+      content: "Hi Aliya! I’m available for your booking tomorrow.",
+      timestamp: new Date(now - 2 * 60 * 1000).toISOString(),
+      status: "sent",
+      isRead: false,
+    },
+    {
+      id: "message-2",
+      conversationId: first.id,
+      senderId: "current-user",
+      receiverId: first.participantId,
+      type: "text",
+      content: "That’s great, thank you. I’ll share the details shortly.",
+      timestamp: new Date(now - 90 * 60 * 1000).toISOString(),
+      status: "read",
+      isRead: true,
+    },
+    {
+      id: "message-3",
+      conversationId: first.id,
+      senderId: first.participantId,
+      receiverId: "current-user",
+      type: "text",
+      content: "Perfect. I’m looking forward to helping you.",
+      timestamp: new Date(now - 75 * 60 * 1000).toISOString(),
+      status: "sent",
+      isRead: false,
+    },
+    {
+      id: "message-4",
+      conversationId: second.id,
+      senderId: second.participantId,
+      receiverId: "current-user",
+      type: "text",
+      content: "Thanks for booking. Looking forward to working with you!",
+      timestamp: new Date(now - 60 * 60 * 1000).toISOString(),
+      status: "sent",
+      isRead: true,
+    },
+  ];
+}
+
+function getDefaultNotifications(): AppNotification[] {
+  const now = Date.now();
+  return [
+    {
+      id: "notification-message-1",
+      type: "message",
+      title: "New message from Mary",
+      body: "Hi Aliya! I’m available for your booking tomorrow.",
+      timestamp: new Date(now - 2 * 60 * 1000).toISOString(),
+      isRead: false,
+      relatedId: "conversation-1",
+      target: "conversation",
+    },
+    {
+      id: "notification-system-1",
+      type: "system",
+      title: "Welcome to SignBee",
+      body: "Your local messages and notifications will appear here.",
+      timestamp: new Date(now - 24 * 60 * 60 * 1000).toISOString(),
+      isRead: true,
+    },
+  ];
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -260,6 +426,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [paymentPinSet, setPaymentPinSetState] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
 
   useEffect(() => {
     loadState();
@@ -280,6 +450,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         storedSavedCards,
         storedTransactions,
         storedPaymentPinHash,
+        storedConversations,
+        storedMessages,
+        storedNotifications,
+        storedIncomingCall,
       ] = await Promise.all([
         AsyncStorage.getItem("user"),
         AsyncStorage.getItem("hasOnboarded"),
@@ -293,6 +467,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         AsyncStorage.getItem("savedCards"),
         AsyncStorage.getItem("transactions"),
         AsyncStorage.getItem("paymentPinHash"),
+        AsyncStorage.getItem("conversations"),
+        AsyncStorage.getItem("messages"),
+        AsyncStorage.getItem("notifications"),
+        AsyncStorage.getItem("incomingCall"),
       ]);
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser) as User;
@@ -323,6 +501,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (storedSavedCards) setSavedCards(JSON.parse(storedSavedCards));
       if (storedTransactions) setTransactions(JSON.parse(storedTransactions));
       if (storedPaymentPinHash) setPaymentPinSetState(true);
+      const loadedConversations = storedConversations
+        ? (JSON.parse(storedConversations) as Conversation[])
+        : getDefaultConversations();
+      const loadedMessages = storedMessages
+        ? (JSON.parse(storedMessages) as Message[])
+        : getDefaultMessages(loadedConversations);
+      setConversations(loadedConversations);
+      setMessages(loadedMessages);
+      setNotifications(
+        storedNotifications
+          ? (JSON.parse(storedNotifications) as AppNotification[])
+          : getDefaultNotifications(),
+      );
+      if (storedIncomingCall) {
+        setIncomingCall(JSON.parse(storedIncomingCall) as IncomingCall);
+      }
     } catch {}
   };
 
@@ -384,6 +578,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       "savedCards",
       "transactions",
       "paymentPinHash",
+      "conversations",
+      "messages",
+      "notifications",
+      "incomingCall",
     ]);
     setBookings([]);
     setFavoriteInterpreterIds([]);
@@ -398,6 +596,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSavedCards([]);
     setTransactions([]);
     setPaymentPinSetState(false);
+    setConversations([]);
+    setMessages([]);
+    setNotifications([]);
+    setIncomingCall(null);
   };
 
   const setHasOnboarded = async (val: boolean) => {
@@ -524,6 +726,142 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const persistMessaging = async (
+    nextConversations: Conversation[],
+    nextMessages: Message[],
+  ) => {
+    setConversations(nextConversations);
+    setMessages(nextMessages);
+    await AsyncStorage.multiSet([
+      ["conversations", JSON.stringify(nextConversations)],
+      ["messages", JSON.stringify(nextMessages)],
+    ]);
+  };
+
+  const appendNotification = async (notification: AppNotification) => {
+    const updated = [notification, ...notifications];
+    setNotifications(updated);
+    await AsyncStorage.setItem("notifications", JSON.stringify(updated));
+  };
+
+  const sendMessage = async (
+    conversationId: string,
+    type: MessageType,
+    content?: string,
+    attachmentUri?: string,
+  ): Promise<Message> => {
+    const conversation = conversations.find(item => item.id === conversationId);
+    if (!conversation) throw new Error("Conversation not found.");
+    if (type === "text" && !content?.trim()) {
+      throw new Error("Enter a message before sending.");
+    }
+    if (type === "image" && !attachmentUri) {
+      throw new Error("Choose an image before sending.");
+    }
+    const senderId = user?.id || "current-user";
+    const message: Message = {
+      id: `message-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      conversationId,
+      senderId,
+      receiverId: conversation.participantId,
+      type,
+      content: content?.trim() || undefined,
+      attachmentUri,
+      timestamp: new Date().toISOString(),
+      status: "sent",
+      isRead: true,
+    };
+    const nextMessages = [...messages, message];
+    const nextConversations = conversations.map(item =>
+      item.id === conversationId
+        ? {
+            ...item,
+            lastMessage: type === "image" ? "Photo" : message.content,
+            lastMessageAt: message.timestamp,
+          }
+        : item,
+    );
+    await persistMessaging(nextConversations, nextMessages);
+    return message;
+  };
+
+  const markConversationRead = async (conversationId: string) => {
+    const nextMessages = messages.map(message =>
+      message.conversationId === conversationId &&
+      message.senderId !== (user?.id || "current-user") &&
+      message.senderId !== "current-user"
+        ? { ...message, isRead: true, status: "read" as MessageStatus }
+        : message,
+    );
+    const nextConversations = conversations.map(conversation =>
+      conversation.id === conversationId
+        ? { ...conversation, unreadCount: 0 }
+        : conversation,
+    );
+    await persistMessaging(nextConversations, nextMessages);
+  };
+
+  const startIncomingCall = async (
+    call: Omit<IncomingCall, "id" | "status" | "startedAt">,
+  ): Promise<string> => {
+    const nextCall: IncomingCall = {
+      ...call,
+      id: `call-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      status: "ringing",
+      startedAt: new Date().toISOString(),
+    };
+    setIncomingCall(nextCall);
+    await AsyncStorage.setItem("incomingCall", JSON.stringify(nextCall));
+    return nextCall.id;
+  };
+
+  const acceptIncomingCall = async (): Promise<string | null> => {
+    if (!incomingCall) return null;
+    const accepted = { ...incomingCall, status: "accepted" as const };
+    setIncomingCall(accepted);
+    await AsyncStorage.setItem("incomingCall", JSON.stringify(accepted));
+    return accepted.id;
+  };
+
+  const declineIncomingCall = async () => {
+    if (!incomingCall) return;
+    const declined = { ...incomingCall, status: "declined" as const };
+    setIncomingCall(declined);
+    await AsyncStorage.setItem("incomingCall", JSON.stringify(declined));
+  };
+
+  const clearIncomingCall = async () => {
+    setIncomingCall(null);
+    await AsyncStorage.removeItem("incomingCall");
+  };
+
+  const markNotificationRead = async (notificationId: string) => {
+    const updated = notifications.map(notification =>
+      notification.id === notificationId
+        ? { ...notification, isRead: true }
+        : notification,
+    );
+    setNotifications(updated);
+    await AsyncStorage.setItem("notifications", JSON.stringify(updated));
+  };
+
+  const markAllNotificationsRead = async () => {
+    const updated = notifications.map(notification => ({
+      ...notification,
+      isRead: true,
+    }));
+    setNotifications(updated);
+    await AsyncStorage.setItem("notifications", JSON.stringify(updated));
+  };
+
+  const unreadMessageCount = conversations.reduce(
+    (total, conversation) => total + conversation.unreadCount,
+    0,
+  );
+  const unreadNotificationCount = notifications.filter(
+    notification => !notification.isRead,
+  ).length;
+
   const setBookingDraft = async (booking: PendingBooking | null) => {
     setBookingDraftState(booking);
     if (booking) {
@@ -603,6 +941,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
     const nextTransactions = [transaction, ...transactions];
     await persistWallet(walletBalance, availableBalance, pendingBalance, nextTransactions);
+    await appendNotification({
+      id: `notification-payment-${transactionId}`,
+      type: "payment",
+      title: "Payment successful",
+      body: `Your ₦${bookingDraft.rate.toLocaleString()} booking payment was recorded.`,
+      timestamp: transaction.date,
+      isRead: false,
+      relatedId: transactionId,
+      target: "transaction",
+    });
     await setBookingDraft(null);
     await setSelectedPaymentMethod(method);
     setPaymentReference(reference);
@@ -639,6 +987,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pendingBalance,
       [transaction, ...transactions],
     );
+    await appendNotification({
+      id: `notification-topup-${transactionId}`,
+      type: "payment",
+      title: "Wallet updated",
+      body: `₦${amount.toLocaleString()} was added to your local demo wallet.`,
+      timestamp: transaction.date,
+      isRead: false,
+      relatedId: transactionId,
+      target: "transaction",
+    });
     await setSelectedPaymentMethod(method);
     setPaymentReference(reference);
     setPaymentStatus("success");
@@ -722,6 +1080,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         savedCards,
         transactions,
         paymentPinSet,
+        conversations,
+        messages,
+        notifications,
+        incomingCall,
+        unreadMessageCount,
+        unreadNotificationCount,
         login,
         register,
         logout,
@@ -746,6 +1110,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         withdrawWalletFunds,
         setPaymentPin,
         validatePaymentPin,
+        sendMessage,
+        markConversationRead,
+        startIncomingCall,
+        acceptIncomingCall,
+        declineIncomingCall,
+        clearIncomingCall,
+        markNotificationRead,
+        markAllNotificationsRead,
       }}
     >
       {children}

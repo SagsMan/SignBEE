@@ -63,11 +63,7 @@ export default function ProfileScreen() {
     {
       icon: "bell",
       label: "Notifications",
-      onPress: () =>
-        Alert.alert(
-          "Notifications",
-          "Notification settings coming soon.",
-        ),
+      onPress: () => router.push("/notification-center"),
     },
     {
       icon: "lock",
