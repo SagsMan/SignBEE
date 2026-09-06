@@ -167,8 +167,11 @@ export default function InterpretersScreen() {
             interpreter={item}
             onPress={() =>
               router.push({
-                pathname: `/interpreter/${item.id}`,
-                params: { bookingType: filter === "Virtual" ? "Virtual" : "" },
+                pathname: "/interpreter/[id]",
+                params: {
+                  id: item.id,
+                  bookingType: filter === "Virtual" ? "Virtual" : "",
+                },
               })
             }
             onFavorite={() => toggleFavorite(item.id)}

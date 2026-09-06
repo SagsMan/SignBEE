@@ -57,6 +57,17 @@ function RootLayoutNav() {
       <Stack.Screen name="call/[id]" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="interpreter/[id]" />
+      <Stack.Screen name="interpreter/index" />
+      <Stack.Screen name="interpreter/jobs" />
+      <Stack.Screen name="interpreter/job/[id]" />
+      <Stack.Screen name="interpreter/profile" />
+      <Stack.Screen name="interpreter/edit-profile" />
+      <Stack.Screen name="interpreter/credentials" />
+      <Stack.Screen name="interpreter/languages" />
+      <Stack.Screen name="interpreter/experience" />
+      <Stack.Screen name="interpreter/availability" />
+      <Stack.Screen name="interpreter/preferences" />
+      <Stack.Screen name="interpreter/earnings" />
     </Stack>
   );
 }

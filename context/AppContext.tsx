@@ -33,8 +33,77 @@ export interface Interpreter {
   location?: string;
 }
 
+export type CredentialVerificationStatus = "pending" | "verified" | "rejected";
+
+export interface InterpreterCredential {
+  id: string;
+  title: string;
+  issuer: string;
+  status: CredentialVerificationStatus;
+  issuedOn?: string;
+  expiresOn?: string;
+  reference?: string;
+}
+
+export interface SignLanguage {
+  id: string;
+  name: string;
+  proficiency: "Native" | "Fluent" | "Professional" | "Conversational";
+  yearsExperience: number;
+  isPrimary: boolean;
+}
+
+export interface AvailabilitySlot {
+  id: string;
+  day: string;
+  start: string;
+  end: string;
+}
+
+export interface InterpreterAvailability {
+  isAvailableNow: boolean;
+  timezone: string;
+  slots: AvailabilitySlot[];
+}
+
+export interface InterpreterPreferences {
+  jobTypes: ("Virtual" | "In-person")[];
+  preferredLocations: string[];
+  acceptsUrgentJobs: boolean;
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+}
+
+export interface InterpreterProfile {
+  id: string;
+  name: string;
+  bio: string;
+  experienceYears: number;
+  specialties: string[];
+  languages: SignLanguage[];
+  credentials: InterpreterCredential[];
+  availability: InterpreterAvailability;
+  preferences: InterpreterPreferences;
+  rating: number;
+  reviews: number;
+  hourlyRate: number;
+  profileImageUri?: string;
+}
+
+export interface InterpreterEarning {
+  id: string;
+  bookingId?: string;
+  clientName: string;
+  amount: number;
+  date: string;
+  status: "pending" | "available" | "paid";
+  description: string;
+}
+
 export interface Booking {
   id: string;
+  clientId?: string;
+  clientName?: string;
   interpreterId: string;
   interpreterName: string;
   interpreterAvatar?: string;
@@ -47,7 +116,8 @@ export interface Booking {
   venue?: string;
   link?: string;
   purpose: string;
-  status: "upcoming" | "ongoing" | "completed" | "cancelled";
+  status: "pending" | "upcoming" | "ongoing" | "completed" | "cancelled";
+  interpreterStatus?: "pending" | "accepted" | "declined" | "completed" | "cancelled";
   notes?: string;
   rate: number;
   imageUri?: string;
@@ -166,6 +236,8 @@ interface AppState {
   incomingCall: IncomingCall | null;
   unreadMessageCount: number;
   unreadNotificationCount: number;
+  interpreterProfile: InterpreterProfile;
+  interpreterEarnings: InterpreterEarning[];
 }
 
 interface AppContextType extends AppState {
@@ -216,6 +288,23 @@ interface AppContextType extends AppState {
   clearIncomingCall: () => Promise<void>;
   markNotificationRead: (notificationId: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
+  acceptInterpreterJob: (bookingId: string) => Promise<void>;
+  declineInterpreterJob: (bookingId: string, reason?: string) => Promise<void>;
+  completeInterpreterJob: (bookingId: string) => Promise<void>;
+  updateInterpreterProfile: (
+    data: Partial<Omit<InterpreterProfile, "id" | "credentials" | "languages" | "availability" | "preferences">>,
+  ) => Promise<void>;
+  updateInterpreterLanguages: (languages: SignLanguage[]) => Promise<void>;
+  addInterpreterCredential: (
+    credential: Omit<InterpreterCredential, "id" | "status">,
+  ) => Promise<void>;
+  updateInterpreterCredential: (
+    id: string,
+    data: Partial<InterpreterCredential>,
+  ) => Promise<void>;
+  removeInterpreterCredential: (id: string) => Promise<void>;
+  updateInterpreterAvailability: (availability: InterpreterAvailability) => Promise<void>;
+  updateInterpreterPreferences: (preferences: InterpreterPreferences) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -407,6 +496,41 @@ function getDefaultNotifications(): AppNotification[] {
   ];
 }
 
+function getDefaultInterpreterProfile(): InterpreterProfile {
+  return {
+    id: "1",
+    name: "Your interpreter profile",
+    bio: "Professional sign language interpreter committed to making every conversation accessible and understood.",
+    experienceYears: 0,
+    specialties: [],
+    languages: [
+      {
+        id: "language-nsl",
+        name: "NSL",
+        proficiency: "Professional",
+        yearsExperience: 1,
+        isPrimary: true,
+      },
+    ],
+    credentials: [],
+    availability: {
+      isAvailableNow: false,
+      timezone: "Africa/Lagos",
+      slots: [],
+    },
+    preferences: {
+      jobTypes: ["Virtual", "In-person"],
+      preferredLocations: [],
+      acceptsUrgentJobs: true,
+      emailNotifications: true,
+      pushNotifications: true,
+    },
+    rating: 0,
+    reviews: 0,
+    hourlyRate: 20000,
+  };
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -430,6 +554,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
+  const [interpreterProfile, setInterpreterProfile] = useState<InterpreterProfile>(
+    getDefaultInterpreterProfile(),
+  );
+  const [interpreterEarnings, setInterpreterEarnings] = useState<InterpreterEarning[]>([]);
 
   useEffect(() => {
     loadState();
@@ -454,6 +582,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         storedMessages,
         storedNotifications,
         storedIncomingCall,
+        storedInterpreterProfile,
+        storedInterpreterEarnings,
       ] = await Promise.all([
         AsyncStorage.getItem("user"),
         AsyncStorage.getItem("hasOnboarded"),
@@ -471,6 +601,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         AsyncStorage.getItem("messages"),
         AsyncStorage.getItem("notifications"),
         AsyncStorage.getItem("incomingCall"),
+        AsyncStorage.getItem("interpreterProfile"),
+        AsyncStorage.getItem("interpreterEarnings"),
       ]);
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser) as User;
@@ -517,22 +649,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (storedIncomingCall) {
         setIncomingCall(JSON.parse(storedIncomingCall) as IncomingCall);
       }
+      if (storedInterpreterProfile) {
+        setInterpreterProfile(JSON.parse(storedInterpreterProfile) as InterpreterProfile);
+      }
+      if (storedInterpreterEarnings) {
+        setInterpreterEarnings(JSON.parse(storedInterpreterEarnings) as InterpreterEarning[]);
+      }
     } catch {}
   };
 
   const login = async (email: string, _password: string): Promise<boolean> => {
+    const storedRole = await AsyncStorage.getItem("lastRole");
     const mockUser: User = {
       id: Date.now().toString(),
       name: "Aliya",
       email,
       phone: "+234 813 000 0000",
-      role: "individual",
+      role: storedRole === "interpreter" ? "interpreter" : "individual",
       isEmailVerified: true,
     };
     setUser(mockUser);
     setIsAuthenticated(true);
     setPendingVerificationEmail(null);
     await AsyncStorage.setItem("user", JSON.stringify(mockUser));
+    await AsyncStorage.setItem("lastRole", mockUser.role || "individual");
     await AsyncStorage.removeItem("pendingVerificationEmail");
     return true;
   };
@@ -557,6 +697,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPendingVerificationEmail(email);
     await AsyncStorage.setItem("user", JSON.stringify(newUser));
     await AsyncStorage.setItem("pendingVerificationEmail", email);
+    await AsyncStorage.setItem("lastRole", role || "individual");
     return true;
   };
 
@@ -610,6 +751,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addBooking = async (booking: Omit<Booking, "id">): Promise<string> => {
     const newBooking: Booking = {
       ...booking,
+      clientId: booking.clientId || user?.id,
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
     };
     const updated = [newBooking, ...bookings];
@@ -664,6 +806,153 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const updated = { ...user, ...data };
     setUser(updated);
     await AsyncStorage.setItem("user", JSON.stringify(updated));
+  };
+
+  const persistInterpreterProfile = async (nextProfile: InterpreterProfile) => {
+    setInterpreterProfile(nextProfile);
+    await AsyncStorage.setItem("interpreterProfile", JSON.stringify(nextProfile));
+  };
+
+  const persistInterpreterEarnings = async (nextEarnings: InterpreterEarning[]) => {
+    setInterpreterEarnings(nextEarnings);
+    await AsyncStorage.setItem("interpreterEarnings", JSON.stringify(nextEarnings));
+  };
+
+  const acceptInterpreterJob = async (bookingId: string) => {
+    const booking = bookings.find(item => item.id === bookingId);
+    if (!booking) throw new Error("Booking not found.");
+
+    const updatedBookings = bookings.map(item =>
+      item.id === bookingId
+        ? { ...item, status: "upcoming" as const, interpreterStatus: "accepted" as const }
+        : item,
+    );
+    setBookings(updatedBookings);
+    await AsyncStorage.setItem("bookings", JSON.stringify(updatedBookings));
+
+    const pendingEarning: InterpreterEarning = {
+      id: `earning-${bookingId}`,
+      bookingId,
+      clientName: booking.clientName || "Client",
+      amount: booking.rate,
+      date: new Date().toISOString(),
+      status: "pending",
+      description: `${booking.language} interpretation · ${booking.date}`,
+    };
+    const nextEarnings = interpreterEarnings.some(item => item.bookingId === bookingId)
+      ? interpreterEarnings
+      : [pendingEarning, ...interpreterEarnings];
+    await persistInterpreterEarnings(nextEarnings);
+    await appendNotification({
+      id: `notification-job-accepted-${bookingId}`,
+      type: "booking",
+      title: "Job accepted",
+      body: `You accepted the ${booking.language} booking for ${booking.date}.`,
+      timestamp: new Date().toISOString(),
+      isRead: false,
+      relatedId: bookingId,
+      target: "booking",
+    });
+  };
+
+  const declineInterpreterJob = async (bookingId: string, reason?: string) => {
+    const updatedBookings = bookings.map(item =>
+      item.id === bookingId
+        ? {
+            ...item,
+            status: "cancelled" as const,
+            interpreterStatus: "declined" as const,
+            cancellationReason: reason || "Declined by interpreter",
+          }
+        : item,
+    );
+    setBookings(updatedBookings);
+    await AsyncStorage.setItem("bookings", JSON.stringify(updatedBookings));
+  };
+
+  const completeInterpreterJob = async (bookingId: string) => {
+    const booking = bookings.find(item => item.id === bookingId);
+    if (!booking) throw new Error("Booking not found.");
+
+    const updatedBookings = bookings.map(item =>
+      item.id === bookingId
+        ? { ...item, status: "completed" as const, interpreterStatus: "completed" as const }
+        : item,
+    );
+    setBookings(updatedBookings);
+    await AsyncStorage.setItem("bookings", JSON.stringify(updatedBookings));
+
+    const completedEarning: InterpreterEarning = {
+      id: `earning-${bookingId}`,
+      bookingId,
+      clientName: booking.clientName || "Client",
+      amount: booking.rate,
+      date: new Date().toISOString(),
+      status: "available",
+      description: `${booking.language} interpretation · ${booking.date}`,
+    };
+    const nextEarnings = [
+      completedEarning,
+      ...interpreterEarnings.filter(item => item.bookingId !== bookingId),
+    ];
+    await persistInterpreterEarnings(nextEarnings);
+  };
+
+  const updateInterpreterProfile = async (
+    data: Partial<
+      Omit<InterpreterProfile, "id" | "credentials" | "languages" | "availability" | "preferences">
+    >,
+  ) => {
+    const nextProfile = { ...interpreterProfile, ...data };
+    await persistInterpreterProfile(nextProfile);
+    if (data.name && user?.role === "interpreter") {
+      await updateUser({ name: data.name });
+    }
+  };
+
+  const updateInterpreterLanguages = async (languages: SignLanguage[]) => {
+    await persistInterpreterProfile({ ...interpreterProfile, languages });
+  };
+
+  const addInterpreterCredential = async (
+    credential: Omit<InterpreterCredential, "id" | "status">,
+  ) => {
+    const nextCredential: InterpreterCredential = {
+      ...credential,
+      id: `credential-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      status: "pending",
+    };
+    await persistInterpreterProfile({
+      ...interpreterProfile,
+      credentials: [nextCredential, ...interpreterProfile.credentials],
+    });
+  };
+
+  const updateInterpreterCredential = async (
+    id: string,
+    data: Partial<InterpreterCredential>,
+  ) => {
+    await persistInterpreterProfile({
+      ...interpreterProfile,
+      credentials: interpreterProfile.credentials.map(item =>
+        item.id === id ? { ...item, ...data } : item,
+      ),
+    });
+  };
+
+  const removeInterpreterCredential = async (id: string) => {
+    await persistInterpreterProfile({
+      ...interpreterProfile,
+      credentials: interpreterProfile.credentials.filter(item => item.id !== id),
+    });
+  };
+
+  const updateInterpreterAvailability = async (availability: InterpreterAvailability) => {
+    await persistInterpreterProfile({ ...interpreterProfile, availability });
+  };
+
+  const updateInterpreterPreferences = async (preferences: InterpreterPreferences) => {
+    await persistInterpreterProfile({ ...interpreterProfile, preferences });
   };
 
   const verifyEmail = async (email: string): Promise<boolean> => {
@@ -861,6 +1150,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const unreadNotificationCount = notifications.filter(
     notification => !notification.isRead,
   ).length;
+  const interpreterListings =
+    interpreterProfile.name !== "Your interpreter profile"
+      ? [
+          {
+            ...MOCK_INTERPRETERS[0],
+            id: interpreterProfile.id,
+            name: interpreterProfile.name,
+            languages: interpreterProfile.languages.map(language => language.name),
+            type: interpreterProfile.preferences.jobTypes.join("/") as Interpreter["type"],
+            rate: interpreterProfile.hourlyRate,
+            availability: interpreterProfile.availability.isAvailableNow
+              ? "Available now"
+              : "Schedule only",
+            isAvailable: interpreterProfile.availability.isAvailableNow,
+            experienceYears: interpreterProfile.experienceYears,
+            specialties: interpreterProfile.specialties,
+            certifications: interpreterProfile.credentials.map(credential => credential.title),
+            reviews: interpreterProfile.reviews,
+            rating: interpreterProfile.rating,
+            bio: interpreterProfile.bio,
+            avatar: "female" as const,
+          },
+        ]
+      : MOCK_INTERPRETERS;
 
   const setBookingDraft = async (booking: PendingBooking | null) => {
     setBookingDraftState(booking);
@@ -1066,7 +1379,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isAuthenticated,
         hasOnboarded,
         bookings,
-        interpreters: MOCK_INTERPRETERS,
+         interpreters: interpreterListings,
         pendingVerificationEmail,
         favoriteInterpreterIds,
         bookingDraft,
@@ -1086,6 +1399,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         incomingCall,
         unreadMessageCount,
         unreadNotificationCount,
+         interpreterProfile,
+         interpreterEarnings,
         login,
         register,
         logout,
@@ -1118,6 +1433,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         clearIncomingCall,
         markNotificationRead,
         markAllNotificationsRead,
+         acceptInterpreterJob,
+         declineInterpreterJob,
+         completeInterpreterJob,
+         updateInterpreterProfile,
+         updateInterpreterLanguages,
+         addInterpreterCredential,
+         updateInterpreterCredential,
+         removeInterpreterCredential,
+         updateInterpreterAvailability,
+         updateInterpreterPreferences,
       }}
     >
       {children}

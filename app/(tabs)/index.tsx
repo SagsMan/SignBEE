@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import InterpreterCard from "@/components/InterpreterCard";
+import InterpreterDashboardScreen from "@/components/interpreter/InterpreterDashboardScreen";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -51,6 +52,10 @@ export default function HomeScreen() {
       params: { type: bookingType, search: search.trim() },
     });
   };
+
+  if (user?.role === "interpreter") {
+    return <InterpreterDashboardScreen />;
+  }
 
   return (
     <ScrollView

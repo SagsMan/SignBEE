@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useApp } from "@/context/AppContext";
+import InterpreterProfileScreen from "@/components/interpreter/InterpreterProfileScreen";
 import { useColors } from "@/hooks/useColors";
 
 interface MenuItem {
@@ -29,6 +30,10 @@ export default function ProfileScreen() {
   const { user, bookings, logout } = useApp();
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
+
+  if (user?.role === "interpreter") {
+    return <InterpreterProfileScreen />;
+  }
 
   const stats = {
     total: bookings.length,
@@ -136,7 +141,7 @@ export default function ProfileScreen() {
             ]}
           >
             <Text style={[styles.roleText, { color: colors.navyDark }]}>
-              {user?.role === "interpreter" ? "Interpreter" : "Individual"}
+              Individual
             </Text>
           </View>
         </View>

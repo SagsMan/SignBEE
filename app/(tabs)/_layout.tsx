@@ -6,9 +6,11 @@ import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import { useApp } from "@/context/AppContext";
 
 function ClassicTabLayout() {
   const colors = useColors();
+  const { user } = useApp();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
@@ -53,7 +55,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: user?.role === "interpreter" ? "Dashboard" : "Home",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="house" tintColor={color} size={24} />
@@ -65,7 +67,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="bookings"
         options={{
-          title: "Bookings",
+          title: user?.role === "interpreter" ? "Jobs" : "Bookings",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="calendar" tintColor={color} size={24} />

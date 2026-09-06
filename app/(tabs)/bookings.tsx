@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import BookingCard from "@/components/BookingCard";
+import InterpreterJobsScreen from "@/components/interpreter/InterpreterJobsScreen";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -27,13 +28,17 @@ const TABS: { key: StatusFilter; label: string }[] = [
 export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { bookings } = useApp();
+  const { bookings, user } = useApp();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<StatusFilter>("upcoming");
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
 
   const filtered = bookings.filter(b => b.status === activeTab);
+
+  if (user?.role === "interpreter") {
+    return <InterpreterJobsScreen />;
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
