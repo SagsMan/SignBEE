@@ -170,7 +170,10 @@ export default function InterpretersScreen() {
                 pathname: "/interpreter/[id]",
                 params: {
                   id: item.id,
-                  bookingType: filter === "Virtual" ? "Virtual" : "",
+                  bookingType:
+                    filter === "Virtual" || filter === "In-person"
+                      ? filter
+                      : undefined,
                 },
               })
             }

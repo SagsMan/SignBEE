@@ -4,7 +4,7 @@
     "slug": "signbee",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon-square.png",
     "scheme": "signbee",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -22,11 +22,8 @@
       "backgroundColor": "#AAFF00",
       "package": "com.signbee.app",
       "versionCode": 1,
-      "compileSdkVersion": 35,
-      "targetSdkVersion": 35,
-      "minSdkVersion": 24,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/icon-square.png",
         "backgroundColor": "#AAFF00"
       },
       "permissions": [
@@ -62,10 +59,6 @@
     "experiments": {
       "typedRoutes": true
     },
-    "extra": {
-      "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
-      }
-    }
+    "extra": {}
   }
 }

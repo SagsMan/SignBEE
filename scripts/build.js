@@ -8,18 +8,9 @@ let metroProcess = null;
 
 const projectRoot = path.resolve(__dirname, "..");
 
-function findWorkspaceRoot(startDir) {
-  let dir = startDir;
-  while (dir !== path.dirname(dir)) {
-    if (fs.existsSync(path.join(dir, "pnpm-workspace.yaml"))) {
-      return dir;
-    }
-    dir = path.dirname(dir);
-  }
-  throw new Error("Could not find workspace root (no pnpm-workspace.yaml found)");
-}
-
-const workspaceRoot = findWorkspaceRoot(projectRoot);
+// SignBee is a standalone Expo app. Keep bundle paths rooted at this app
+// instead of requiring the unrelated pnpm workspace scaffold used by Replit.
+const workspaceRoot = projectRoot;
 const basePath = (process.env.BASE_PATH || "/").replace(/\/+$/, "");
 
 function exitWithError(message) {
@@ -147,9 +138,8 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
   }
 
   metroProcess = spawn(
-    "pnpm",
+    process.platform === "win32" ? "npx.cmd" : "npx",
     [
-      "exec",
       "expo",
       "start",
       "--no-dev",

@@ -150,7 +150,8 @@ export default function BookingScreen() {
         purpose,
         notes: notes.trim(),
         imageUri,
-        status: "upcoming",
+        status: "pending",
+        interpreterStatus: "pending",
         rate: interpreter.rate,
         paymentStatus: "pending",
       });

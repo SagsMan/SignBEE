@@ -323,6 +323,12 @@ interface AppContextType extends AppState {
     content?: string,
     attachmentUri?: string,
   ) => Promise<Message>;
+  startConversation: (data: {
+    participantId: string;
+    participantName: string;
+    participantAvatar?: "male" | "female";
+    participantRole?: "Interpreter" | "SignBee";
+  }) => Promise<string>;
   markConversationRead: (conversationId: string) => Promise<void>;
   startIncomingCall: (call: Omit<IncomingCall, "id" | "status" | "startedAt">) => Promise<string>;
   acceptIncomingCall: () => Promise<string | null>;
@@ -811,6 +817,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       "messages",
       "notifications",
       "incomingCall",
+      "lastRole",
+      "interpreterProfile",
+      "interpreterEarnings",
       "addresses",
       "supportRequests",
       "referralCode",
@@ -834,6 +843,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMessages([]);
     setNotifications([]);
     setIncomingCall(null);
+    setInterpreterProfile(getDefaultInterpreterProfile());
+    setInterpreterEarnings([]);
     setAddresses([]);
     setSupportRequests([]);
     setReferralCode("SIGNBEE-FRIEND");
@@ -882,6 +893,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       date,
       time,
       status: "upcoming",
+      interpreterStatus: "pending",
       isRescheduled: true,
       rescheduledAt: new Date().toISOString(),
     });
@@ -1245,6 +1257,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return message;
   };
 
+  const startConversation = async (data: {
+    participantId: string;
+    participantName: string;
+    participantAvatar?: "male" | "female";
+    participantRole?: "Interpreter" | "SignBee";
+  }): Promise<string> => {
+    const existing = conversations.find(
+      conversation => conversation.participantId === data.participantId,
+    );
+    if (existing) return existing.id;
+
+    const conversation: Conversation = {
+      id: `conversation-${data.participantId}`,
+      participantId: data.participantId,
+      participantName: data.participantName,
+      participantAvatar: data.participantAvatar,
+      participantRole: data.participantRole || "Interpreter",
+      unreadCount: 0,
+    };
+    await persistMessaging([conversation, ...conversations], messages);
+    return conversation.id;
+  };
+
   const markConversationRead = async (conversationId: string) => {
     const nextMessages = messages.map(message =>
       message.conversationId === conversationId &&
@@ -1602,6 +1637,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setPaymentPin,
         validatePaymentPin,
         sendMessage,
+        startConversation,
         markConversationRead,
         startIncomingCall,
         acceptIncomingCall,

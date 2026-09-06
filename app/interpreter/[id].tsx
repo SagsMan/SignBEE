@@ -2,7 +2,6 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Image,
   Platform,
   ScrollView,
@@ -47,11 +46,15 @@ export default function InterpreterDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, bookingType } = useLocalSearchParams<{
+    id: string;
+    bookingType?: string;
+  }>();
   const {
     interpreters,
     favoriteInterpreterIds,
     toggleFavorite,
+    startConversation,
   } = useApp();
   const [activeTab, setActiveTab] = useState<DetailTab>("About");
 
@@ -213,9 +216,19 @@ export default function InterpreterDetailScreen() {
       >
         <TouchableOpacity
           style={[styles.messageButton, { borderColor: colors.navyDark }]}
-          onPress={() =>
-            Alert.alert("Messages", "Messaging will be available in Phase 5.")
-          }
+          onPress={async () => {
+            const conversationId = await startConversation({
+              participantId: interpreter.id,
+              participantName: interpreter.name,
+              participantAvatar:
+                interpreter.avatar === "male" ? "male" : "female",
+              participantRole: "Interpreter",
+            });
+            router.push({
+              pathname: "/conversation/[id]",
+              params: { id: conversationId },
+            });
+          }}
           accessibilityLabel="Message interpreter"
         >
           <Feather name="message-circle" size={20} color={colors.navyDark} />
@@ -225,7 +238,15 @@ export default function InterpreterDetailScreen() {
           onPress={() =>
             router.push({
               pathname: "/booking",
-              params: { interpreterId: interpreter.id },
+              params: {
+                interpreterId: interpreter.id,
+                type:
+                  bookingType === "Virtual" || bookingType === "In-person"
+                    ? bookingType
+                    : interpreter.type === "Virtual"
+                      ? "Virtual"
+                      : "In-person",
+              },
             })
           }
           style={styles.bookButton}

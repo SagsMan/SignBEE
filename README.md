@@ -4,408 +4,409 @@
   <img src="./assets/images/icon.png" alt="SignBee official app logo" width="140" />
 </p>
 
-**Connect deaf individuals with certified sign language interpreters — instantly.**
+**Connect deaf individuals with certified sign-language interpreters — for the moments that matter.**
 
-SignBee is a frontend-only React Native mobile app built with Expo. It lets individuals book certified sign language interpreters for medical, legal, educational, religious, or everyday needs — virtually or in-person.
+SignBee is an Expo mobile app for finding, booking, and communicating with sign-language interpreters in Nigeria. It supports virtual and in-person interpretation for medical, legal, education, business, religious, and everyday needs. The current release is a complete local-state product prototype: the primary user and interpreter journeys are wired end to end, while production services are documented below instead of being simulated as available infrastructure.
 
----
+> **Release-readiness note:** SignBee currently uses React Context and AsyncStorage rather than a hosted backend. Payments, authentication, support delivery, real-time messaging, calls, push notifications, and credential verification are local demonstrations until their production services are connected.
 
-## Table of Contents
+## Contents
 
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Screens & Navigation](#screens--navigation)
-- [Core Libraries](#core-libraries)
-- [Installation](#installation)
-- [Running the App](#running-the-app)
-- [Open in Android Studio](#open-in-android-studio)
-- [Build APK (Android)](#build-apk-android)
-- [Build AAB for Google Play](#build-aab-for-google-play)
-- [State Management](#state-management)
-- [Design Tokens](#design-tokens)
+- [Product scope](#product-scope)
+- [Current release status](#current-release-status)
+- [Technology](#technology)
+- [Repository map](#repository-map)
+- [Navigation and screen inventory](#navigation-and-screen-inventory)
+- [Client experience](#client-experience)
+- [Interpreter experience](#interpreter-experience)
+- [Shared state and persistence](#shared-state-and-persistence)
+- [Payments and wallet](#payments-and-wallet)
+- [Design and Figma](#design-and-figma)
+- [Setup](#setup)
+- [Development commands](#development-commands)
+- [Expo and release configuration](#expo-and-release-configuration)
+- [Backend dependencies](#backend-dependencies)
+- [QA checklist](#qa-checklist)
+- [Known limitations](#known-limitations)
 
----
+## Product scope
 
-## Tech Stack
+### For clients
 
-| Layer | Technology |
-|---|---|
-| Framework | [Expo](https://expo.dev) ~54 (SDK 54) |
-| Language | TypeScript 5.9 (strict mode) |
-| Navigation | [Expo Router](https://expo.github.io/router) v6 — file-based routing |
-| State | React Context + AsyncStorage (no server) |
-| Styling | React Native StyleSheet (inline design tokens) |
-| Fonts | Inter (400 · 500 · 600 · 700) via `@expo-google-fonts/inter` |
-| Icons | `@expo/vector-icons` (Feather set) + `expo-symbols` (SF Symbols on iOS) |
-| Tabs | `expo-glass-effect` → NativeTabs (iOS 26 Liquid Glass) with Expo Tabs fallback |
-| Gestures | `react-native-gesture-handler` |
-| Keyboard | `react-native-keyboard-controller` (KeyboardAwareScrollView) |
-| Haptics | `expo-haptics` |
-| Blur | `expo-blur` (tab bar blur on iOS) |
-| Storage | `@react-native-async-storage/async-storage` |
-| Animation | `react-native-reanimated` |
-| Package Mgr | npm (Node.js ≥ 20) |
+- First-launch onboarding and role selection
+- Individual registration, login, email-verification demo, and password-reset demo
+- Interpreter search by name, location, or language
+- Filters for all, virtual, in-person, and available-now interpreters
+- Interpreter profiles with availability, specialties, certifications, reviews, favorites, and booking
+- Two-step booking for virtual or in-person appointments
+- Date, time, duration, language, purpose, notes, and optional image attachment
+- Card and bank-transfer payment flows
+- Booking status, appointment details, rescheduling, cancellation, completion, and rating
+- Conversation list, text/image messages, and local audio/video-call entry points
+- Wallet, transactions, top-up, withdrawal, payment PIN, addresses, referrals, rewards, notifications, FAQ, and support
 
----
+### For interpreters
 
-## Project Structure
+- Interpreter dashboard and role-aware tab navigation
+- Availability status and schedule
+- Pending, upcoming, completed, and cancelled jobs
+- Job details, accept, decline, and complete actions
+- Interpreter profile, experience, languages, credentials, availability, and preferences
+- Earnings summary with pending and available earnings
+- Shared messages, notifications, profile, account, and logout flows
 
-```
+## Current release status
+
+### Verified in the local app
+
+- Expo Router route tree is present for all client and interpreter screens.
+- TypeScript strict typechecking passes after dependencies are installed.
+- Client booking creation creates a pending job that appears in the interpreter job list.
+- Interpreter accept, decline, and complete actions update the shared booking record.
+- Virtual and in-person selection is carried from interpreter discovery into the booking form.
+- Interpreter profile messaging opens a real local conversation instead of a dead-end alert.
+- AsyncStorage persistence covers the local prototype state.
+- Logout clears user-specific state, including interpreter profile and earnings, to prevent device-level leakage into the next session.
+- Expo web preview starts successfully in this development environment.
+
+### Not production-ready yet
+
+- Login and registration are local demo flows; no authentication provider or password validation is connected.
+- Payment screens record local success; no card processor, bank transfer provider, or server-side ledger is connected.
+- Messages and calls are local UI flows; there is no real-time transport or media provider.
+- Support requests are saved on the device and are not delivered to a support team.
+- Interpreter credentials are stored locally and cannot be reviewed by an administrator.
+- AsyncStorage is not encrypted and should not be used for production payment credentials, PINs, or sensitive personal data.
+
+## Technology
+
+| Area | Choice |
+| --- | --- |
+| Mobile framework | Expo SDK 54 |
+| Navigation | Expo Router 4, file-based routing |
+| Language | TypeScript with strict checking |
+| UI | React Native StyleSheet |
+| State | React Context and React hooks |
+| Persistence | `@react-native-async-storage/async-storage` |
+| Fonts | Inter 400, 500, 600, and 700 |
+| Icons | Feather icons and SF Symbols on iOS |
+| Images | Expo Image Picker |
+| Location | Expo Location |
+| Keyboard handling | `react-native-keyboard-controller` |
+| Motion and feedback | React Native Animated and Expo Haptics |
+| Web preview | Expo web / Metro |
+| Package manager | npm |
+
+The app intentionally remains on the existing Expo dependency set from the repository. Do not upgrade major Expo, React Native, or Router versions as part of Phase 8 without a separate migration plan.
+
+## Repository map
+
+```text
 SignBEE/
-├── app/                        # All screens (Expo Router file-based)
-│   ├── _layout.tsx             # Root layout — fonts, providers, stack navigator
-│   ├── index.tsx               # Splash / entry screen
-│   ├── onboarding.tsx          # 3-slide onboarding carousel
-│   ├── role.tsx                # Role selection (Individual / Interpreter)
-│   ├── register.tsx            # Sign-up form
-│   ├── login.tsx               # Log-in form
-│   ├── booking.tsx             # Booking flow (In-person / Virtual)
-│   ├── +not-found.tsx          # 404 fallback
-│   ├── interpreter/
-│   │   └── [id].tsx            # Dynamic interpreter profile + book CTA
-│   └── (tabs)/
-│       ├── _layout.tsx         # Tab bar (NativeTabs → ClassicTabs fallback)
-│       ├── index.tsx           # Home — interpreter search & filter
-│       ├── bookings.tsx        # My bookings (tabbed by status)
-│       ├── messages.tsx        # Messages list
-│       └── profile.tsx         # User profile + stats + settings
-│
-├── components/
-│   ├── PrimaryButton.tsx       # Branded CTA button with haptics
-│   ├── InputField.tsx          # Text input with label, error, password toggle
-│   ├── InterpreterCard.tsx     # Interpreter list card (name, langs, rating, rate)
-│   ├── BookingCard.tsx         # Booking summary card with status badge
-│   ├── ErrorBoundary.tsx       # React class error boundary
-│   └── ErrorFallback.tsx       # Error UI with dev-mode stack trace modal
-│
-├── context/
-│   └── AppContext.tsx          # Global state: user, bookings, interpreters, auth
-│
-├── constants/
-│   └── colors.ts               # Design tokens (brand palette)
-│
-├── hooks/
-│   └── useColors.ts            # Returns active palette (light/dark aware)
-│
-├── assets/
-│   └── images/                 # PNG assets (icons, rings, dots, characters)
-│
-├── app.json                    # Expo config (name, slug, splash, plugins)
-├── babel.config.js             # babel-preset-expo
-├── metro.config.js             # Metro bundler config
-├── tsconfig.json               # TypeScript config (strict, baseUrl .)
-└── package.json
+├── app/                         Expo Router screens and dynamic routes
+│   ├── (tabs)/                  Client/interpreter tab shell
+│   ├── interpreter/             Interpreter-specific routes
+│   ├── appointment/[id].tsx     Appointment details
+│   ├── booking.tsx              Two-step booking form
+│   ├── conversation/[id].tsx    Local messaging thread
+│   ├── interpreter/[id].tsx     Client-facing interpreter profile
+│   └── ...                      Auth, payments, wallet, support, settings
+├── components/                  Shared client and interpreter UI
+├── context/AppContext.tsx       Source of truth for local app state
+├── constants/colors.ts          SignBee color tokens
+├── hooks/useColors.ts           Active color palette hook
+├── assets/images/               App icon, avatars, and UI imagery
+├── scripts/build.js             Static Expo Go bundle preparation
+├── server/serve.js              Static build server
+├── app.json                     Expo application configuration
+├── eas.json                     EAS build profiles
+├── package.json                 npm scripts and dependencies
+└── tsconfig.json                Strict TypeScript configuration
 ```
 
----
+## Navigation and screen inventory
 
-## Screens & Navigation
+Expo Router derives routes from the `app/` directory. The root stack registers the complete route surface in `app/_layout.tsx`.
 
-```
-index (Splash)
-  └─▶ onboarding       (first launch only)
-        └─▶ role       (select Individual / Interpreter)
-              └─▶ register
-                    └─▶ (tabs)
-  └─▶ login            (returning user)
-        └─▶ (tabs)
-  └─▶ (tabs)           (already authenticated)
+### Entry and authentication
 
-(tabs)
-  ├── Home             — search & filter interpreters, tap to view profile
-  ├── Bookings         — upcoming / ongoing / completed / cancelled
-  ├── Messages         — conversation list
-  └── Profile          — user info, booking stats, settings, logout
+- `/` — animated splash and session redirect
+- `/onboarding` — first-launch onboarding
+- `/role` — Individual or Interpreter role selection
+- `/register` — registration
+- `/login` — login
+- `/verify-account` — local verification-code demo
+- `/email-verification` — verification guidance
+- `/forgot-password` — password reset request
+- `/reset-password` — local password reset demo
+- `/password-changed` — reset confirmation
+- `/location-permission` — location permission choice
+- `/waitlist` — waitlist form
 
-interpreter/[id]       — full profile, reviews, Book + Message CTAs
-booking                — In-person or Virtual booking form
-```
+### Client booking and discovery
 
----
+- `/(tabs)` — client or interpreter tab shell
+- `/(tabs)/index` — client home or interpreter dashboard
+- `/interpreters` — searchable interpreter list and filters
+- `/interpreter/[id]` — interpreter profile, favorites, messaging, booking
+- `/booking` — booking details and review
+- `/booking-confirmation` — booking confirmation
+- `/appointment/[id]` — appointment details
+- `/reschedule/[id]` — reschedule flow
+- `/cancel-booking/[id]` — cancellation flow
+- `/rating/[id]` — completed booking rating
 
-## Core Libraries
+### Payments and wallet
 
-### Navigation
-```
-expo-router ~6.0.17
-```
-File-based routing powered by React Navigation. Every file in `app/` becomes a route automatically.
+- `/payment-method` — choose card or bank transfer
+- `/card-payment` — card entry demo
+- `/card-added` — saved-card confirmation
+- `/bank-transfer` — bank transfer instructions/demo
+- `/payment-success` — payment confirmation
+- `/wallet` — wallet overview
+- `/add-funds` — top-up method selection
+- `/top-up` — top-up flow
+- `/withdraw` — withdrawal flow
+- `/payment-pin` — local four-digit payment PIN
+- `/transactions` — transaction list
+- `/transaction/[id]` — transaction details
 
-### Storage & State
-```
-@react-native-async-storage/async-storage 2.2.0
-```
-All user data (auth, role, bookings) is persisted locally via `AppContext`. No backend or API required.
+### Communication and account
 
-### Keyboard Handling
-```
-react-native-keyboard-controller 1.18.5
-```
-`KeyboardAwareScrollView` wraps all forms so the keyboard never covers input fields.
+- `/(tabs)/messages` — conversations
+- `/conversation/[id]` — messages, image attachments, call entry points
+- `/notification-center` — notifications
+- `/(tabs)/profile` — profile and account hub
+- `/account-information` — account details
+- `/edit-profile` — client profile editing
+- `/password-security` — password settings demo
+- `/addresses` and `/add-address` — saved locations
+- `/support`, `/contact-support`, `/faq` — support surfaces
+- `/referrals` and `/rewards` — referral and reward surfaces
+- `/terms` and `/privacy` — legal information
+- `/incoming-call` and `/call/[id]` — local call UI
 
-### Fonts
-```
-@expo-google-fonts/inter ^0.4.0
-```
-Four weights loaded at startup: Regular (400), Medium (500), SemiBold (600), Bold (700).
+### Interpreter
 
-### Tab Bar
-```
-expo-glass-effect ~0.1.4       # isLiquidGlassAvailable()
-expo-blur ~15.0.8              # BlurView tab background on iOS
-expo-symbols ~1.0.8            # SF Symbols on iOS
-```
-On iOS 26+ the tab bar uses native Liquid Glass. On older iOS / Android / Web it falls back to a standard Expo Tabs bar with blur.
+- `/interpreter` — interpreter dashboard entry
+- `/interpreter/jobs` — job list and filters
+- `/interpreter/job/[id]` — accept, decline, and complete job actions
+- `/interpreter/profile` — interpreter profile hub
+- `/interpreter/edit-profile` — name and bio
+- `/interpreter/credentials` — credentials list and submission
+- `/interpreter/languages` — sign languages and proficiency
+- `/interpreter/experience` — experience and specialties
+- `/interpreter/availability` — availability status and schedule
+- `/interpreter/preferences` — job type, location, urgent jobs, and notifications
+- `/interpreter/earnings` — earnings summary and history
 
-### Safe Area
-```
-react-native-safe-area-context ~5.6.0
-```
-`useSafeAreaInsets()` used throughout for proper padding on notched devices.
+## Client experience
 
----
+The client flow begins at the splash screen. First-time users complete onboarding and choose a role. Returning users are redirected to the local login screen or directly to the tabs when a verified local session exists.
 
-## Installation
+The discovery-to-booking path is:
 
-### Prerequisites
+1. Search or filter interpreters.
+2. Open an interpreter profile.
+3. Favorite the interpreter or start a conversation.
+4. Choose Book Now.
+5. Complete the virtual or in-person booking form.
+6. Review date, time, duration, purpose, notes, and rate.
+7. Choose card or bank transfer.
+8. Finish the local payment demonstration.
+9. View the pending booking and appointment details.
+10. Reschedule, cancel, complete, and rate the appointment.
 
-- **Node.js** ≥ 20 — [nodejs.org](https://nodejs.org)
-- **npm** ≥ 10 (comes with Node.js — no extra install needed)
-- **Expo Go** app on your phone — [iOS](https://apps.apple.com/app/expo-go/id982107779) · [Android](https://play.google.com/store/apps/details?id=host.exp.exponent)
+New bookings are written with `status: "pending"` and `interpreterStatus: "pending"` so the interpreter side can see them as requests. Accepted jobs move to `upcoming`/`accepted`; completed jobs move to `completed`.
 
-### Steps
+## Interpreter experience
+
+Interpreter users see a role-aware dashboard and tab bar. The jobs list reads the same `bookings` collection used by the client. Pending jobs can be accepted or declined. Accepted jobs appear in upcoming work, and completing a job creates a local earnings entry.
+
+Interpreter profile changes persist through `AppContext` and are reflected in the client-facing interpreter listing in the same local session. This demonstrates the intended shared-state contract, but it is not multi-device synchronization.
+
+## Shared state and persistence
+
+`context/AppContext.tsx` owns:
+
+- User, role, verification state, and onboarding
+- Interpreter listings and favorites
+- Booking draft and booking lifecycle
+- Saved cards, transactions, wallet balances, and payment state
+- Conversations, messages, notifications, and call state
+- Interpreter profile, credentials, availability, preferences, and earnings
+- Addresses, support requests, referrals, and rewards
+
+State is restored on launch from AsyncStorage. Logout clears user-specific keys, including bookings, financial demo state, conversations, notifications, addresses, referrals, rewards, interpreter profile, interpreter earnings, and the role selector. On-device state is intentionally simple for prototyping and must be replaced or protected before handling real user data.
+
+## Payments and wallet
+
+The payment UI supports:
+
+- Saved card metadata with masked last four digits
+- Card payment form validation
+- Bank transfer instruction flow
+- Booking payment confirmation
+- Wallet top-up
+- Withdrawal destination and payment PIN checks
+- Transaction history and details
+
+The implementation records successful local transactions and updates the local wallet for top-ups and withdrawals. It does not contact a processor, verify a bank transfer, tokenize a card, or create a server-side financial record. Never enter real card numbers or financial credentials into this prototype.
+
+## Design and Figma
+
+The implementation follows the SignBee design direction:
+
+- Primary electric green: `#AAFF00`
+- Dark navy: `#1A1340`
+- Green tint: `#E8FFB0`
+- Neutral white and soft-gray surfaces
+- Inter typography
+- Feather/SF Symbol iconography
+- Rounded cards, clear status labels, and accessible action targets
+
+Source design file: [SignBee in Figma](https://www.figma.com/design/jlwNxDyjd8rrAq3O1Poxrh/SignBee--Copy-?node-id=0-1)
+
+The Figma file currently identifies itself as **SignBee (Copy)** and contains three top-level pages. The app uses the repository’s existing assets and tokens rather than introducing a second visual system.
+
+## Setup
+
+### Requirements
+
+- Node.js 20 or newer
+- npm 10 or newer
+- Expo Go for physical-device testing, or an Android/iOS simulator
+
+### Install
 
 ```bash
-# 1. Clone the repo
 git clone https://github.com/SagsMan/SignBEE.git
 cd SignBEE
-
-# 2. Install all dependencies
 npm install
+```
 
-# 3. Start the dev server
+### Run on a device or simulator
+
+```bash
 npm start
+npm run android
+npm run ios
+npm run web
 ```
 
-Scan the QR code that appears in your terminal with:
-- **iOS** — your Camera app
-- **Android** — the Expo Go app
+Scan the QR code with Expo Go on a device. iOS simulator commands require macOS and Xcode.
 
----
+## Development commands
 
-## Running the App
+| Command | Purpose |
+| --- | --- |
+| `npm run typecheck` | Strict TypeScript check |
+| `npm run start` | Start Expo Metro |
+| `npm run web` | Start Expo web |
+| `npm run android` | Start Expo for Android |
+| `npm run ios` | Start Expo for iOS |
+| `npm run build` | Prepare the static Expo Go deployment bundle |
+| `npm run serve` | Serve an existing `static-build/` directory |
+| `npx expo-doctor` | Check Expo config and dependency alignment |
+| `npx expo prebuild --platform android` | Generate native Android files when needed |
 
-| Command | What it does |
-|---|---|
-| `npm start` | Start Expo dev server (scan QR with phone) |
-| `npm run android` | Open on Android emulator / connected device |
-| `npm run ios` | Open on iOS simulator (macOS only) |
-| `npm run web` | Open in the browser |
-| `npm run typecheck` | Run TypeScript type checks |
-
----
-
-## Open in Android Studio
-
-Follow these steps to open SignBee as a native Android project inside Android Studio.
-
-### Step 1 — Install prerequisites
-
-- **Android Studio** (latest stable) — [developer.android.com/studio](https://developer.android.com/studio)
-  During setup select: **Android SDK**, **Android SDK Platform**, **Android Virtual Device**
-- **Java Development Kit (JDK) 17** — bundled inside Android Studio; no separate install needed
-- **Node.js** ≥ 20 and **npm** ≥ 10
-
-### Step 2 — Add the android folder (prebuild)
-
-Expo manages the `android/` folder via prebuild. Run this once to generate it:
+The Replit development workflow uses:
 
 ```bash
-# Install dependencies first (if you haven't already)
-npm install
-
-# Generate the native android/ folder
-npx expo prebuild --platform android
+npx expo start --web --port 3000
 ```
 
-> This creates an `android/` folder at the root of the project. Do **not** edit it by hand — re-run `prebuild` after changing `app.json` or adding native plugins.
+Do not commit `node_modules`, generated native folders, static build output, keystores, certificates, API keys, or payment credentials.
 
-### Step 3 — Open in Android Studio
+## Expo and release configuration
 
-1. Launch **Android Studio**
-2. Click **Open** (or **File → Open**)
-3. Navigate to your cloned `SignBEE/` folder and select the `android/` subfolder
-4. Click **OK** — Android Studio will sync Gradle (this takes 2–5 minutes the first time)
+The app keeps the existing identifiers:
 
-### Step 4 — Run on an emulator or device
+- iOS bundle identifier: `com.signbee.app`
+- Android package: `com.signbee.app`
+- App name: `SignBee`
+- Slug: `signbee`
+- Version: `1.0.0`
 
-**Emulator:**
-1. In Android Studio click **Device Manager** (right sidebar)
-2. Click **Create Device** → choose a phone (e.g. Pixel 8) → select API 35 system image → Finish
-3. Press the green **Run ▶** button
+`app.json` contains only static Expo configuration. The placeholder EAS project ID was removed so a fake project identifier cannot be mistaken for a configured release project. Run EAS project setup in the owner’s Expo account before an App Store or Play Store release.
 
-**Physical device:**
-1. On your Android phone go to **Settings → About Phone** → tap **Build Number** 7 times to enable Developer Mode
-2. Enable **USB Debugging** in **Settings → Developer Options**
-3. Connect via USB — your device appears in the device dropdown
-4. Press the green **Run ▶** button
+`eas.json` includes:
 
----
+- Development build profile
+- Internal preview APK profile
+- Production Android App Bundle profile
 
-## Build APK (Android)
+Store submission credentials are intentionally not stored in this repository. Configure them through Expo/EAS or the release environment.
 
-An APK is a single installable file you can share directly (sideload). Use this for testing or sharing with testers.
+## Backend dependencies
 
-### Option A — EAS Build (recommended, cloud, no setup)
+The following services are required for a production product:
 
-EAS (Expo Application Services) builds the APK in the cloud — no Android Studio or Java needed locally.
+| Capability | Current prototype | Production requirement |
+| --- | --- | --- |
+| Authentication | Local demo login/register | Auth provider, password hashing, email verification, sessions |
+| User and interpreter data | In-memory defaults + AsyncStorage | Hosted database and API |
+| Booking synchronization | Shared state on one device | Server-side booking service and conflict handling |
+| Payments | Local card/bank-transfer simulation | PCI-aware payment provider and server-side ledger |
+| Wallet and withdrawals | Local arithmetic | Regulated payout/payment provider and reconciliation |
+| Messaging | AsyncStorage conversations | Authenticated real-time messaging service |
+| Audio/video calls | Local incoming-call UI | WebRTC/media provider and signaling backend |
+| Push notifications | Local notification list | Push notification service and notification worker |
+| Image attachments | Local device URI | Authenticated cloud object storage |
+| Support | Saved locally | Support ticket API, email, or helpdesk integration |
+| Credential review | Pending local records | Secure upload, reviewer workflow, and verification service |
+| Location | Device permission and mock discovery | Maps/geocoding or location service as required |
 
-```bash
-# Step 1 — Install EAS CLI globally
-npm install -g eas-cli
+The app should present these as unavailable or demo-only until the corresponding service is connected. Do not treat local success states as proof of real payment, delivery, verification, or synchronization.
 
-# Step 2 — Log in to your Expo account (create one free at expo.dev)
-eas login
+## QA checklist
 
-# Step 3 — Configure EAS for this project (only once)
-eas build:configure
+### Client
 
-# Step 4 — Build the APK
-eas build -p android --profile preview
-```
+- [x] Launch and splash redirect
+- [x] Onboarding and role selection
+- [x] Registration, login, and verification demo
+- [x] Home and interpreter discovery
+- [x] Search and filters
+- [x] Interpreter profile and favorites
+- [x] Profile-to-message navigation
+- [x] Virtual and in-person booking
+- [x] Date and time selection
+- [x] Booking review and confirmation
+- [x] Card and bank-transfer demo flows
+- [x] Booking status, details, reschedule, cancellation, completion, and rating routes
+- [x] Wallet, transactions, top-up, withdrawal, and payment PIN routes
+- [x] Messages, notifications, profile, support, referrals, rewards, and logout routes
 
-When the build finishes (≈ 5–10 min) EAS gives you a download link for the `.apk` file.
+### Interpreter
 
-> The `preview` profile produces an APK. Add this to `eas.json` if it does not exist:
-> ```json
-> {
->   "build": {
->     "preview": {
->       "android": {
->         "buildType": "apk"
->       }
->     }
->   }
-> }
-> ```
+- [x] Dashboard and role-aware tabs
+- [x] Availability status and schedule
+- [x] Jobs, filters, and job details
+- [x] Accept, decline, upcoming, completed, and cancelled states
+- [x] Credentials, sign languages, experience, and preferences
+- [x] Interpreter profile, earnings, messages, notifications, and logout
 
-### Option B — Local APK build (requires Android Studio)
+### General
 
-```bash
-# Step 1 — Generate the android/ folder (skip if already done)
-npx expo prebuild --platform android
+- [x] Route files and dynamic route targets audited
+- [x] Client/interpreter booking state contract aligned
+- [x] Local persistence and logout reset reviewed
+- [x] TypeScript typecheck
+- [x] Expo web workflow startup
+- [x] Expo config validation and dependency audit run
+- [ ] Expo SDK dependency alignment (the existing Expo Router 4 / React Native 0.76 set is intentionally preserved; `expo-doctor` reports upgrade recommendations)
+- [ ] Production auth, payment, push, messaging, storage, and call providers
+- [ ] Store build with an owner-configured EAS project
 
-# Step 2 — Build a debug APK
-cd android
-./gradlew assembleDebug
+## Known limitations
 
-# The APK is at:
-# android/app/build/outputs/apk/debug/app-debug.apk
-```
+1. A local login accepts the entered credentials and does not validate a stored password.
+2. The verification code is a fixed local demo value and is not emailed.
+3. AsyncStorage is shared at the device level and is not encrypted.
+4. The payment PIN uses a local demo hash and is not a substitute for secure authentication.
+5. Payment, wallet, withdrawal, support, messages, calls, notifications, referrals, and rewards do not leave the device.
+6. Interpreter availability and profile data do not synchronize between different devices.
+7. EAS project and store credentials are not present in the repository by design.
 
-Copy `app-debug.apk` to your phone and install it directly.
-
----
-
-## Build AAB for Google Play
-
-An **AAB** (Android App Bundle) is the format required by the Google Play Store. It is smaller than an APK because Play optimises delivery per device.
-
-### Option A — EAS Build (recommended, cloud)
-
-```bash
-# Step 1 — Install EAS CLI (skip if already installed)
-npm install -g eas-cli
-
-# Step 2 — Log in
-eas login
-
-# Step 3 — Build the AAB for production
-eas build -p android --profile production
-```
-
-EAS builds an `.aab` file and provides a download link (≈ 5–15 min). Upload it directly to the **Google Play Console → Production track**.
-
-> The default `production` profile already produces an AAB. Your `eas.json` should look like:
-> ```json
-> {
->   "build": {
->     "production": {
->       "android": {
->         "buildType": "app-bundle"
->       }
->     },
->     "preview": {
->       "android": {
->         "buildType": "apk"
->       }
->     }
->   }
-> }
-> ```
-
-### Option B — Local AAB build (requires Android Studio)
-
-```bash
-# Step 1 — Generate android/ folder (skip if already done)
-npx expo prebuild --platform android
-
-# Step 2 — Build a release AAB
-cd android
-./gradlew bundleRelease
-
-# The AAB is at:
-# android/app/build/outputs/bundle/release/app-release.aab
-```
-
-> **Note:** A release AAB must be signed with a keystore before uploading to the Play Store. In Android Studio go to **Build → Generate Signed Bundle / APK** and follow the wizard to create or use an existing keystore.
-
----
-
-## State Management
-
-Everything lives in `context/AppContext.tsx` — React Context + `useState` + AsyncStorage. No external state library, no backend.
-
-```
-AppContext provides:
-  user              — logged-in user (name, email, phone, role)
-  isAuthenticated   — boolean
-  hasOnboarded      — boolean (persisted across launches)
-  bookings          — Booking[]  (persisted)
-  interpreters      — Interpreter[]  (5 mock entries, Nigerian context)
-
-  login(email, password)          → sets user, marks authenticated
-  register(name, email, ...)      → creates user, marks authenticated
-  logout()                        → clears user + bookings from storage
-  setHasOnboarded(true)           → persisted, skips onboarding next launch
-  addBooking(booking)             → appends to bookings list, persisted
-  cancelBooking(id)               → sets status → "cancelled", persisted
-  updateUser(data)                → merges patch into user, persisted
-```
-
----
-
-## Design Tokens
-
-Defined in `constants/colors.ts`, consumed via the `useColors()` hook:
-
-| Token | Value | Usage |
-|---|---|---|
-| `primary` | `#AAFF00` | Buttons, active states, splash background |
-| `navyDark` | `#1A1340` | Headings, active tab, button text |
-| `background` | `#FFFFFF` | Screen backgrounds |
-| `muted` | `#F4F4F4` | Card backgrounds, input fills |
-| `mutedForeground` | `#9B9BAA` | Placeholder text, secondary labels |
-| `border` | `#EBEBEB` | Dividers, input borders |
-| `greenLight` | `#E8FFB0` | Profile card, language chips, hero bg |
-| `destructive` | `#FF4444` | Cancel actions, error messages |
-| `star` | `#FFB800` | Rating stars |
-
----
-
-## Brand
-
-- **Primary colour:** `#AAFF00` (electric green)
-- **Dark colour:** `#1A1340` (navy)
-- **Font:** Inter (Google Fonts)
-- **Target:** Nigerian sign language community (ASL, BSL, NSL, PSL, MSL)
+These limitations are documented so a future backend phase can replace the local seams without claiming that unavailable infrastructure already exists.
