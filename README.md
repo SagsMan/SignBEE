@@ -432,3 +432,8 @@ The app should present these as unavailable or demo-only until the corresponding
 8. EAS project and store credentials are not present in the repository by design.
 
 These limitations are documented so a future backend phase can replace the local seams without claiming that unavailable infrastructure already exists.
+
+## Credits
+
+- **Maryam** — UI/UX Designer for both the SignBee app and SignBee Agent
+- **Sagiru** — Developer
