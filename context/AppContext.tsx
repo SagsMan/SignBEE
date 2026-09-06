@@ -50,6 +50,12 @@ export interface Booking {
   status: "upcoming" | "ongoing" | "completed" | "cancelled";
   notes?: string;
   rate: number;
+  imageUri?: string;
+  isRescheduled?: boolean;
+  rescheduledAt?: string;
+  cancellationReason?: string;
+  rating?: number;
+  review?: string;
 }
 
 interface AppState {
@@ -67,8 +73,11 @@ interface AppContextType extends AppState {
   register: (name: string, email: string, phone: string, password: string, role: UserRole) => Promise<boolean>;
   logout: () => Promise<void>;
   setHasOnboarded: (val: boolean) => Promise<void>;
-  addBooking: (booking: Omit<Booking, "id">) => Promise<void>;
-  cancelBooking: (id: string) => Promise<void>;
+  addBooking: (booking: Omit<Booking, "id">) => Promise<string>;
+  cancelBooking: (id: string, reason?: string) => Promise<void>;
+  rescheduleBooking: (id: string, date: string, time: string) => Promise<void>;
+  completeBooking: (id: string) => Promise<void>;
+  rateBooking: (id: string, rating: number, review: string) => Promise<void>;
   updateUser: (data: Partial<User>) => Promise<void>;
   verifyEmail: (email: string) => Promise<boolean>;
   requestPasswordReset: (email: string) => Promise<boolean>;
@@ -275,7 +284,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem("hasOnboarded", val ? "true" : "false");
   };
 
-  const addBooking = async (booking: Omit<Booking, "id">) => {
+  const addBooking = async (booking: Omit<Booking, "id">): Promise<string> => {
     const newBooking: Booking = {
       ...booking,
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -283,14 +292,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const updated = [newBooking, ...bookings];
     setBookings(updated);
     await AsyncStorage.setItem("bookings", JSON.stringify(updated));
+    return newBooking.id;
   };
 
-  const cancelBooking = async (id: string) => {
+  const updateBooking = async (id: string, data: Partial<Booking>) => {
     const updated = bookings.map(b =>
-      b.id === id ? { ...b, status: "cancelled" as const } : b,
+      b.id === id ? { ...b, ...data } : b,
     );
     setBookings(updated);
     await AsyncStorage.setItem("bookings", JSON.stringify(updated));
+  };
+
+  const cancelBooking = async (id: string, reason?: string) => {
+    await updateBooking(id, {
+      status: "cancelled",
+      cancellationReason: reason,
+    });
+  };
+
+  const rescheduleBooking = async (
+    id: string,
+    date: string,
+    time: string,
+  ): Promise<void> => {
+    await updateBooking(id, {
+      date,
+      time,
+      status: "upcoming",
+      isRescheduled: true,
+      rescheduledAt: new Date().toISOString(),
+    });
+  };
+
+  const completeBooking = async (id: string): Promise<void> => {
+    await updateBooking(id, { status: "completed" });
+  };
+
+  const rateBooking = async (
+    id: string,
+    rating: number,
+    review: string,
+  ): Promise<void> => {
+    await updateBooking(id, { status: "completed", rating, review });
   };
 
   const updateUser = async (data: Partial<User>) => {
@@ -376,6 +419,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setHasOnboarded,
         addBooking,
         cancelBooking,
+        rescheduleBooking,
+        completeBooking,
+        rateBooking,
         updateUser,
         verifyEmail,
         requestPasswordReset,

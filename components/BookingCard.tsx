@@ -49,7 +49,9 @@ export default function BookingCard({ booking, onPress, onCancel }: Props) {
           style={[styles.badge, { backgroundColor: statusColor + "20" }]}
         >
           <Text style={[styles.badgeText, { color: statusColor }]}>
-            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+            {booking.isRescheduled
+              ? "Rescheduled"
+              : booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
           </Text>
         </View>
       </View>
@@ -85,7 +87,10 @@ export default function BookingCard({ booking, onPress, onCancel }: Props) {
       {booking.status === "upcoming" && onCancel && (
         <TouchableOpacity
           style={[styles.cancelBtn, { borderColor: colors.destructive }]}
-          onPress={onCancel}
+          onPress={event => {
+            event.stopPropagation();
+            onCancel();
+          }}
         >
           <Text style={[styles.cancelText, { color: colors.destructive }]}>
             Cancel Booking

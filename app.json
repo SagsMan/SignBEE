@@ -51,6 +51,12 @@
         {
           "locationWhenInUsePermission": "Allow SignBee to use your location to find nearby interpreters."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow SignBee to attach an image to your booking."
+        }
       ]
     ],
     "experiments": {

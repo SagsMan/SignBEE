@@ -1,4 +1,5 @@
 import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   FlatList,
@@ -26,7 +27,8 @@ const TABS: { key: StatusFilter; label: string }[] = [
 export default function BookingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { bookings, cancelBooking } = useApp();
+  const { bookings } = useApp();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<StatusFilter>("upcoming");
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
@@ -102,9 +104,19 @@ export default function BookingsScreen() {
         renderItem={({ item }) => (
           <BookingCard
             booking={item}
+            onPress={() =>
+              router.push({
+                pathname: "/appointment/[id]",
+                params: { id: item.id },
+              })
+            }
             onCancel={
               item.status === "upcoming"
-                ? () => cancelBooking(item.id)
+                ? () =>
+                    router.push({
+                      pathname: "/cancel-booking/[id]",
+                      params: { id: item.id },
+                    })
                 : undefined
             }
           />

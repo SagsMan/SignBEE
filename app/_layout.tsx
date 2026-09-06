@@ -26,6 +26,11 @@ function RootLayoutNav() {
       <Stack.Screen name="register" />
       <Stack.Screen name="login" />
       <Stack.Screen name="interpreters" />
+      <Stack.Screen name="booking-confirmation" />
+      <Stack.Screen name="appointment/[id]" />
+      <Stack.Screen name="reschedule/[id]" />
+      <Stack.Screen name="cancel-booking/[id]" />
+      <Stack.Screen name="rating/[id]" />
       <Stack.Screen name="verify-account" />
       <Stack.Screen name="email-verification" />
       <Stack.Screen name="forgot-password" />
