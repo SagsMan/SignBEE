@@ -39,6 +39,18 @@ function RootLayoutNav() {
       <Stack.Screen name="waitlist" />
       <Stack.Screen name="location-permission" />
       <Stack.Screen name="booking" />
+      <Stack.Screen name="payment-method" />
+      <Stack.Screen name="card-payment" />
+      <Stack.Screen name="card-added" />
+      <Stack.Screen name="bank-transfer" />
+      <Stack.Screen name="payment-success" />
+      <Stack.Screen name="wallet" />
+      <Stack.Screen name="add-funds" />
+      <Stack.Screen name="top-up" />
+      <Stack.Screen name="withdraw" />
+      <Stack.Screen name="payment-pin" />
+      <Stack.Screen name="transactions" />
+      <Stack.Screen name="transaction/[id]" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="interpreter/[id]" />
     </Stack>

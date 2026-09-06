@@ -27,6 +27,8 @@ export default function HomeScreen() {
     bookings,
     favoriteInterpreterIds,
     toggleFavorite,
+    walletBalance,
+    availableBalance,
   } = useApp();
 
   const [search, setSearch] = useState("");
@@ -158,6 +160,24 @@ export default function HomeScreen() {
           style={styles.heroImage}
         />
       </View>
+
+      <TouchableOpacity
+        style={[styles.walletCard, { backgroundColor: colors.navyDark }]}
+        onPress={() => router.push("/wallet")}
+      >
+        <View style={styles.walletCopy}>
+          <Text style={[styles.walletEyebrow, { color: colors.primary }]}>SignBee wallet</Text>
+          <Text style={[styles.walletBalance, { color: "#FFFFFF" }]}>
+            ₦{walletBalance.toLocaleString()}
+          </Text>
+          <Text style={[styles.walletMeta, { color: "#FFFFFF" }]}>
+            ₦{availableBalance.toLocaleString()} available
+          </Text>
+        </View>
+        <View style={[styles.walletIcon, { backgroundColor: colors.primary }]}>
+          <Feather name="arrow-up-right" size={20} color={colors.navyDark} />
+        </View>
+      </TouchableOpacity>
 
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.navyDark }]}>
@@ -321,6 +341,20 @@ const styles = StyleSheet.create({
     marginRight: -8,
     marginBottom: -22,
   },
+  walletCard: {
+    minHeight: 106,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 26,
+  },
+  walletCopy: { flex: 1 },
+  walletEyebrow: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginBottom: 6 },
+  walletBalance: { fontSize: 24, fontFamily: "Inter_700Bold", marginBottom: 4 },
+  walletMeta: { fontSize: 11, opacity: 0.75 },
+  walletIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

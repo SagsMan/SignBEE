@@ -76,6 +76,11 @@ export default function ProfileScreen() {
         Alert.alert("Privacy", "Privacy settings coming soon."),
     },
     {
+      icon: "credit-card",
+      label: "Wallet & Payments",
+      onPress: () => router.push("/wallet"),
+    },
+    {
       icon: "help-circle",
       label: "Help & Support",
       onPress: () =>

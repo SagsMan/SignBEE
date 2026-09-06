@@ -52,6 +52,10 @@ export default function BookingConfirmationScreen() {
             <SummaryRow label="Date" value={booking.date} colors={colors} />
             <SummaryRow label="Time" value={`${booking.time} · ${booking.duration}`} colors={colors} />
             <SummaryRow label="Service" value={booking.purpose} colors={colors} />
+            <SummaryRow label="Amount paid" value={`₦${booking.rate.toLocaleString()}`} colors={colors} />
+            {booking.paymentReference ? (
+              <SummaryRow label="Payment reference" value={booking.paymentReference} colors={colors} />
+            ) : null}
           </View>
         ) : null}
       </View>

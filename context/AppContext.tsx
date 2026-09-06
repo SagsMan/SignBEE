@@ -56,7 +56,37 @@ export interface Booking {
   cancellationReason?: string;
   rating?: number;
   review?: string;
+  paymentStatus?: "pending" | "paid" | "failed";
+  paymentReference?: string;
 }
+
+export type PaymentMethodType = "card" | "bank_transfer";
+export type PaymentStatus = "idle" | "processing" | "success" | "failed";
+export type TransactionType = "payment" | "top_up" | "withdrawal";
+export type TransactionStatus = "pending" | "success" | "failed";
+
+export interface SavedCard {
+  id: string;
+  brand: "Visa" | "Mastercard" | "Verve" | "Card";
+  last4: string;
+  expiry: string;
+  holderName: string;
+}
+
+export interface Transaction {
+  id: string;
+  type: TransactionType;
+  amount: number;
+  status: TransactionStatus;
+  date: string;
+  reference: string;
+  description: string;
+  paymentMethod?: PaymentMethodType;
+  bookingId?: string;
+  destination?: string;
+}
+
+export interface PendingBooking extends Omit<Booking, "id"> {}
 
 interface AppState {
   user: User | null;
@@ -66,6 +96,17 @@ interface AppState {
   interpreters: Interpreter[];
   pendingVerificationEmail: string | null;
   favoriteInterpreterIds: string[];
+  bookingDraft: PendingBooking | null;
+  selectedPaymentMethod: PaymentMethodType | null;
+  paymentStatus: PaymentStatus;
+  paymentAmount: number;
+  paymentReference: string | null;
+  walletBalance: number;
+  availableBalance: number;
+  pendingBalance: number;
+  savedCards: SavedCard[];
+  transactions: Transaction[];
+  paymentPinSet: boolean;
 }
 
 interface AppContextType extends AppState {
@@ -87,6 +128,22 @@ interface AppContextType extends AppState {
     status: "granted" | "denied" | "skipped",
   ) => Promise<void>;
   toggleFavorite: (interpreterId: string) => Promise<void>;
+  setBookingDraft: (booking: PendingBooking | null) => Promise<void>;
+  setSelectedPaymentMethod: (method: PaymentMethodType | null) => Promise<void>;
+  addSavedCard: (card: Omit<SavedCard, "id">) => Promise<SavedCard>;
+  completeBookingPayment: (
+    method: PaymentMethodType,
+  ) => Promise<{ bookingId: string; transactionId: string }>;
+  addWalletFunds: (
+    amount: number,
+    method: PaymentMethodType,
+  ) => Promise<{ transactionId: string; reference: string }>;
+  withdrawWalletFunds: (
+    amount: number,
+    destination: string,
+  ) => Promise<{ transactionId: string; reference: string }>;
+  setPaymentPin: (pin: string) => Promise<boolean>;
+  validatePaymentPin: (pin: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -191,6 +248,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
   const [favoriteInterpreterIds, setFavoriteInterpreterIds] = useState<string[]>([]);
+  const [bookingDraft, setBookingDraftState] = useState<PendingBooking | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethodState] =
+    useState<PaymentMethodType | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentReference, setPaymentReference] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [availableBalance, setAvailableBalance] = useState(0);
+  const [pendingBalance, setPendingBalance] = useState(0);
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [paymentPinSet, setPaymentPinSetState] = useState(false);
 
   useEffect(() => {
     loadState();
@@ -203,11 +272,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
         storedOnboarded,
         storedBookings,
         storedFavorites,
+        storedBookingDraft,
+        storedSelectedPaymentMethod,
+        storedWalletBalance,
+        storedAvailableBalance,
+        storedPendingBalance,
+        storedSavedCards,
+        storedTransactions,
+        storedPaymentPinHash,
       ] = await Promise.all([
         AsyncStorage.getItem("user"),
         AsyncStorage.getItem("hasOnboarded"),
         AsyncStorage.getItem("bookings"),
         AsyncStorage.getItem("favoriteInterpreterIds"),
+        AsyncStorage.getItem("bookingDraft"),
+        AsyncStorage.getItem("selectedPaymentMethod"),
+        AsyncStorage.getItem("walletBalance"),
+        AsyncStorage.getItem("availableBalance"),
+        AsyncStorage.getItem("pendingBalance"),
+        AsyncStorage.getItem("savedCards"),
+        AsyncStorage.getItem("transactions"),
+        AsyncStorage.getItem("paymentPinHash"),
       ]);
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser) as User;
@@ -221,6 +306,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (storedOnboarded === "true") setHasOnboardedState(true);
       if (storedBookings) setBookings(JSON.parse(storedBookings));
       if (storedFavorites) setFavoriteInterpreterIds(JSON.parse(storedFavorites));
+      if (storedBookingDraft) setBookingDraftState(JSON.parse(storedBookingDraft));
+      if (storedSelectedPaymentMethod) {
+        setSelectedPaymentMethodState(storedSelectedPaymentMethod as PaymentMethodType);
+      }
+      if (storedWalletBalance) {
+        const balance = Number(storedWalletBalance) || 0;
+        setWalletBalance(balance);
+      }
+      if (storedAvailableBalance) {
+        setAvailableBalance(Number(storedAvailableBalance) || 0);
+      } else if (storedWalletBalance) {
+        setAvailableBalance(Number(storedWalletBalance) || 0);
+      }
+      if (storedPendingBalance) setPendingBalance(Number(storedPendingBalance) || 0);
+      if (storedSavedCards) setSavedCards(JSON.parse(storedSavedCards));
+      if (storedTransactions) setTransactions(JSON.parse(storedTransactions));
+      if (storedPaymentPinHash) setPaymentPinSetState(true);
     } catch {}
   };
 
@@ -274,9 +376,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
       "pendingVerificationEmail",
       "passwordResetEmail",
       "favoriteInterpreterIds",
+      "bookingDraft",
+      "selectedPaymentMethod",
+      "walletBalance",
+      "availableBalance",
+      "pendingBalance",
+      "savedCards",
+      "transactions",
+      "paymentPinHash",
     ]);
     setBookings([]);
     setFavoriteInterpreterIds([]);
+    setBookingDraftState(null);
+    setSelectedPaymentMethodState(null);
+    setPaymentStatus("idle");
+    setPaymentAmount(0);
+    setPaymentReference(null);
+    setWalletBalance(0);
+    setAvailableBalance(0);
+    setPendingBalance(0);
+    setSavedCards([]);
+    setTransactions([]);
+    setPaymentPinSetState(false);
   };
 
   const setHasOnboarded = async (val: boolean) => {
@@ -403,6 +524,183 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const setBookingDraft = async (booking: PendingBooking | null) => {
+    setBookingDraftState(booking);
+    if (booking) {
+      await AsyncStorage.setItem("bookingDraft", JSON.stringify(booking));
+    } else {
+      await AsyncStorage.removeItem("bookingDraft");
+    }
+  };
+
+  const setSelectedPaymentMethod = async (method: PaymentMethodType | null) => {
+    setSelectedPaymentMethodState(method);
+    if (method) {
+      await AsyncStorage.setItem("selectedPaymentMethod", method);
+    } else {
+      await AsyncStorage.removeItem("selectedPaymentMethod");
+    }
+  };
+
+  const addSavedCard = async (card: Omit<SavedCard, "id">): Promise<SavedCard> => {
+    const savedCard: SavedCard = {
+      ...card,
+      id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    };
+    const updated = [savedCard, ...savedCards];
+    setSavedCards(updated);
+    await AsyncStorage.setItem("savedCards", JSON.stringify(updated));
+    return savedCard;
+  };
+
+  const createReference = (prefix: string) =>
+    `SBE-${prefix}-${Date.now().toString().slice(-8)}`;
+
+  const persistWallet = async (
+    balance: number,
+    available: number,
+    pending: number,
+    nextTransactions: Transaction[],
+  ) => {
+    setWalletBalance(balance);
+    setAvailableBalance(available);
+    setPendingBalance(pending);
+    setTransactions(nextTransactions);
+    await AsyncStorage.multiSet([
+      ["walletBalance", String(balance)],
+      ["availableBalance", String(available)],
+      ["pendingBalance", String(pending)],
+      ["transactions", JSON.stringify(nextTransactions)],
+    ]);
+  };
+
+  const completeBookingPayment = async (
+    method: PaymentMethodType,
+  ): Promise<{ bookingId: string; transactionId: string }> => {
+    if (!bookingDraft) throw new Error("No booking is ready for payment.");
+    setPaymentStatus("processing");
+    setPaymentAmount(bookingDraft.rate);
+    setPaymentReference(null);
+    await new Promise(resolve => setTimeout(resolve, 650));
+
+    const reference = createReference("PAY");
+    const bookingId = await addBooking({
+      ...bookingDraft,
+      paymentStatus: "paid",
+      paymentReference: reference,
+    });
+    const transactionId = `txn-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const transaction: Transaction = {
+      id: transactionId,
+      type: "payment",
+      amount: bookingDraft.rate,
+      status: "success",
+      date: new Date().toISOString(),
+      reference,
+      description: `Interpreter booking with ${bookingDraft.interpreterName}`,
+      paymentMethod: method,
+      bookingId,
+    };
+    const nextTransactions = [transaction, ...transactions];
+    await persistWallet(walletBalance, availableBalance, pendingBalance, nextTransactions);
+    await setBookingDraft(null);
+    await setSelectedPaymentMethod(method);
+    setPaymentReference(reference);
+    setPaymentStatus("success");
+    return { bookingId, transactionId };
+  };
+
+  const addWalletFunds = async (
+    amount: number,
+    method: PaymentMethodType,
+  ): Promise<{ transactionId: string; reference: string }> => {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("Enter a valid amount.");
+    }
+    setPaymentStatus("processing");
+    setPaymentAmount(amount);
+    await new Promise(resolve => setTimeout(resolve, 650));
+
+    const reference = createReference("TOP");
+    const transactionId = `txn-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const transaction: Transaction = {
+      id: transactionId,
+      type: "top_up",
+      amount,
+      status: "success",
+      date: new Date().toISOString(),
+      reference,
+      description: "Wallet top-up",
+      paymentMethod: method,
+    };
+    await persistWallet(
+      walletBalance + amount,
+      availableBalance + amount,
+      pendingBalance,
+      [transaction, ...transactions],
+    );
+    await setSelectedPaymentMethod(method);
+    setPaymentReference(reference);
+    setPaymentStatus("success");
+    return { transactionId, reference };
+  };
+
+  const withdrawWalletFunds = async (
+    amount: number,
+    destination: string,
+  ): Promise<{ transactionId: string; reference: string }> => {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("Enter a valid amount.");
+    }
+    if (amount > availableBalance) {
+      throw new Error("That amount is greater than your available balance.");
+    }
+    if (!destination.trim()) {
+      throw new Error("Add a withdrawal destination.");
+    }
+    setPaymentStatus("processing");
+    setPaymentAmount(amount);
+    await new Promise(resolve => setTimeout(resolve, 650));
+
+    const reference = createReference("WD");
+    const transactionId = `txn-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const transaction: Transaction = {
+      id: transactionId,
+      type: "withdrawal",
+      amount,
+      status: "success",
+      date: new Date().toISOString(),
+      reference,
+      description: "Wallet withdrawal",
+      destination: destination.trim(),
+    };
+    await persistWallet(
+      walletBalance - amount,
+      availableBalance - amount,
+      pendingBalance,
+      [transaction, ...transactions],
+    );
+    setPaymentReference(reference);
+    setPaymentStatus("success");
+    return { transactionId, reference };
+  };
+
+  const hashPin = (pin: string) =>
+    pin.split("").reduce((hash, char) => ((hash * 31 + char.charCodeAt(0)) >>> 0), 7).toString(16);
+
+  const setPaymentPin = async (pin: string): Promise<boolean> => {
+    if (!/^\d{4}$/.test(pin)) return false;
+    await AsyncStorage.setItem("paymentPinHash", hashPin(pin));
+    setPaymentPinSetState(true);
+    return true;
+  };
+
+  const validatePaymentPin = async (pin: string): Promise<boolean> => {
+    if (!/^\d{4}$/.test(pin)) return false;
+    const stored = await AsyncStorage.getItem("paymentPinHash");
+    return Boolean(stored && stored === hashPin(pin));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -413,6 +711,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         interpreters: MOCK_INTERPRETERS,
         pendingVerificationEmail,
         favoriteInterpreterIds,
+        bookingDraft,
+        selectedPaymentMethod,
+        paymentStatus,
+        paymentAmount,
+        paymentReference,
+        walletBalance,
+        availableBalance,
+        pendingBalance,
+        savedCards,
+        transactions,
+        paymentPinSet,
         login,
         register,
         logout,
@@ -429,6 +738,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         joinWaitlist,
         setLocationPermission,
         toggleFavorite,
+        setBookingDraft,
+        setSelectedPaymentMethod,
+        addSavedCard,
+        completeBookingPayment,
+        addWalletFunds,
+        withdrawWalletFunds,
+        setPaymentPin,
+        validatePaymentPin,
       }}
     >
       {children}

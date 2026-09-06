@@ -76,7 +76,7 @@ export default function BookingScreen() {
     interpreterId?: string;
     type?: string;
   }>();
-  const { interpreters, addBooking } = useApp();
+  const { interpreters, setBookingDraft } = useApp();
   const interpreter = interpreters.find(item => item.id === interpreterId);
   const dateOptions = useMemo(() => getDateOptions(), []);
 
@@ -131,11 +131,11 @@ export default function BookingScreen() {
     setStep(2);
   };
 
-  const confirmBooking = async () => {
+  const continueToPayment = async () => {
     if (!interpreter) return;
     setIsSaving(true);
     try {
-      const id = await addBooking({
+      await setBookingDraft({
         interpreterId: interpreter.id,
         interpreterName: interpreter.name,
         interpreterAvatar: interpreter.avatar,
@@ -152,8 +152,9 @@ export default function BookingScreen() {
         imageUri,
         status: "upcoming",
         rate: interpreter.rate,
+        paymentStatus: "pending",
       });
-      router.replace({ pathname: "/booking-confirmation", params: { id } });
+      router.push("/payment-method");
     } finally {
       setIsSaving(false);
     }
@@ -495,8 +496,8 @@ export default function BookingScreen() {
         ]}
       >
         <PrimaryButton
-          title={step === 1 ? "Review booking" : "Confirm booking"}
-          onPress={step === 1 ? continueToReview : confirmBooking}
+          title={step === 1 ? "Review booking" : "Continue to payment"}
+          onPress={step === 1 ? continueToReview : continueToPayment}
           loading={isSaving}
         />
       </View>
