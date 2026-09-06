@@ -14,6 +14,43 @@ export interface User {
   locationPermission?: "granted" | "denied" | "skipped";
 }
 
+export interface UserAddress {
+  id: string;
+  label: "Home" | "Work" | "Other";
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode?: string;
+  isDefault: boolean;
+}
+
+export interface SupportRequest {
+  id: string;
+  category: "General help" | "Booking" | "Payment" | "Account" | "Report a problem";
+  subject: string;
+  message: string;
+  createdAt: string;
+  status: "saved locally";
+}
+
+export interface ReferralRecord {
+  id: string;
+  name: string;
+  status: "Invited" | "Joined";
+  date: string;
+  reward: number;
+}
+
+export interface Reward {
+  id: string;
+  title: string;
+  description: string;
+  amount: number;
+  status: "earned" | "redeemed";
+  date: string;
+}
+
 export interface Interpreter {
   id: string;
   name: string;
@@ -238,6 +275,11 @@ interface AppState {
   unreadNotificationCount: number;
   interpreterProfile: InterpreterProfile;
   interpreterEarnings: InterpreterEarning[];
+  addresses: UserAddress[];
+  supportRequests: SupportRequest[];
+  referralCode: string;
+  referralHistory: ReferralRecord[];
+  rewards: Reward[];
 }
 
 interface AppContextType extends AppState {
@@ -305,6 +347,15 @@ interface AppContextType extends AppState {
   removeInterpreterCredential: (id: string) => Promise<void>;
   updateInterpreterAvailability: (availability: InterpreterAvailability) => Promise<void>;
   updateInterpreterPreferences: (preferences: InterpreterPreferences) => Promise<void>;
+  updateAccount: (data: Partial<Pick<User, "name" | "email" | "phone" | "avatar">>) => Promise<void>;
+  addAddress: (address: Omit<UserAddress, "id">) => Promise<UserAddress>;
+  updateAddress: (id: string, data: Partial<UserAddress>) => Promise<void>;
+  removeAddress: (id: string) => Promise<void>;
+  setDefaultAddress: (id: string) => Promise<void>;
+  submitSupportRequest: (
+    request: Omit<SupportRequest, "id" | "createdAt" | "status">,
+  ) => Promise<SupportRequest>;
+  shareReferral: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -531,6 +582,19 @@ function getDefaultInterpreterProfile(): InterpreterProfile {
   };
 }
 
+function getDefaultRewards(): Reward[] {
+  return [
+    {
+      id: "welcome-reward",
+      title: "Welcome to SignBEE",
+      description: "Thanks for creating your SignBEE account.",
+      amount: 500,
+      status: "earned",
+      date: new Date().toISOString(),
+    },
+  ];
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -558,6 +622,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getDefaultInterpreterProfile(),
   );
   const [interpreterEarnings, setInterpreterEarnings] = useState<InterpreterEarning[]>([]);
+  const [addresses, setAddresses] = useState<UserAddress[]>([]);
+  const [supportRequests, setSupportRequests] = useState<SupportRequest[]>([]);
+  const [referralCode, setReferralCode] = useState("SIGNBEE-FRIEND");
+  const [referralHistory, setReferralHistory] = useState<ReferralRecord[]>([]);
+  const [rewards, setRewards] = useState<Reward[]>([]);
 
   useEffect(() => {
     loadState();
@@ -584,6 +653,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         storedIncomingCall,
         storedInterpreterProfile,
         storedInterpreterEarnings,
+        storedAddresses,
+        storedSupportRequests,
+        storedReferralCode,
+        storedReferralHistory,
+        storedRewards,
       ] = await Promise.all([
         AsyncStorage.getItem("user"),
         AsyncStorage.getItem("hasOnboarded"),
@@ -603,6 +677,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         AsyncStorage.getItem("incomingCall"),
         AsyncStorage.getItem("interpreterProfile"),
         AsyncStorage.getItem("interpreterEarnings"),
+        AsyncStorage.getItem("addresses"),
+        AsyncStorage.getItem("supportRequests"),
+        AsyncStorage.getItem("referralCode"),
+        AsyncStorage.getItem("referralHistory"),
+        AsyncStorage.getItem("rewards"),
       ]);
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser) as User;
@@ -655,6 +734,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (storedInterpreterEarnings) {
         setInterpreterEarnings(JSON.parse(storedInterpreterEarnings) as InterpreterEarning[]);
       }
+      if (storedAddresses) setAddresses(JSON.parse(storedAddresses) as UserAddress[]);
+      if (storedSupportRequests) {
+        setSupportRequests(JSON.parse(storedSupportRequests) as SupportRequest[]);
+      }
+      if (storedReferralCode) setReferralCode(storedReferralCode);
+      if (storedReferralHistory) {
+        setReferralHistory(JSON.parse(storedReferralHistory) as ReferralRecord[]);
+      }
+      setRewards(storedRewards ? (JSON.parse(storedRewards) as Reward[]) : getDefaultRewards());
     } catch {}
   };
 
@@ -723,6 +811,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       "messages",
       "notifications",
       "incomingCall",
+      "addresses",
+      "supportRequests",
+      "referralCode",
+      "referralHistory",
+      "rewards",
     ]);
     setBookings([]);
     setFavoriteInterpreterIds([]);
@@ -741,6 +834,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMessages([]);
     setNotifications([]);
     setIncomingCall(null);
+    setAddresses([]);
+    setSupportRequests([]);
+    setReferralCode("SIGNBEE-FRIEND");
+    setReferralHistory([]);
+    setRewards([]);
   };
 
   const setHasOnboarded = async (val: boolean) => {
@@ -806,6 +904,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const updated = { ...user, ...data };
     setUser(updated);
     await AsyncStorage.setItem("user", JSON.stringify(updated));
+  };
+
+  const updateAccount = async (
+    data: Partial<Pick<User, "name" | "email" | "phone" | "avatar">>,
+  ) => {
+    await updateUser(data);
+  };
+
+  const persistAddresses = async (nextAddresses: UserAddress[]) => {
+    setAddresses(nextAddresses);
+    await AsyncStorage.setItem("addresses", JSON.stringify(nextAddresses));
+  };
+
+  const addAddress = async (address: Omit<UserAddress, "id">) => {
+    const newAddress: UserAddress = {
+      ...address,
+      id: `address-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    };
+    const nextAddresses = address.isDefault
+      ? [newAddress, ...addresses.map(item => ({ ...item, isDefault: false }))]
+      : [...addresses, newAddress];
+    await persistAddresses(nextAddresses);
+    return newAddress;
+  };
+
+  const updateAddress = async (id: string, data: Partial<UserAddress>) => {
+    let nextAddresses = addresses.map(item => item.id === id ? { ...item, ...data } : item);
+    if (data.isDefault) {
+      nextAddresses = nextAddresses.map(item => ({ ...item, isDefault: item.id === id }));
+    }
+    await persistAddresses(nextAddresses);
+  };
+
+  const removeAddress = async (id: string) => {
+    const removed = addresses.find(item => item.id === id);
+    let nextAddresses = addresses.filter(item => item.id !== id);
+    if (removed?.isDefault && nextAddresses.length) {
+      nextAddresses = nextAddresses.map((item, index) => ({ ...item, isDefault: index === 0 }));
+    }
+    await persistAddresses(nextAddresses);
+  };
+
+  const setDefaultAddress = async (id: string) => {
+    await persistAddresses(addresses.map(item => ({ ...item, isDefault: item.id === id })));
+  };
+
+  const submitSupportRequest = async (
+    request: Omit<SupportRequest, "id" | "createdAt" | "status">,
+  ) => {
+    const supportRequest: SupportRequest = {
+      ...request,
+      id: `support-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: new Date().toISOString(),
+      status: "saved locally",
+    };
+    const updated = [supportRequest, ...supportRequests];
+    setSupportRequests(updated);
+    await AsyncStorage.setItem("supportRequests", JSON.stringify(updated));
+    return supportRequest;
+  };
+
+  const shareReferral = async () => {
+    const referral: ReferralRecord = {
+      id: `referral-${Date.now()}`,
+      name: "Shared invitation",
+      status: "Invited",
+      date: new Date().toISOString(),
+      reward: 500,
+    };
+    const updated = [referral, ...referralHistory];
+    setReferralHistory(updated);
+    await AsyncStorage.setItem("referralHistory", JSON.stringify(updated));
+    await AsyncStorage.setItem("referralCode", referralCode);
   };
 
   const persistInterpreterProfile = async (nextProfile: InterpreterProfile) => {
@@ -1401,6 +1572,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         unreadNotificationCount,
          interpreterProfile,
          interpreterEarnings,
+         addresses,
+         supportRequests,
+         referralCode,
+         referralHistory,
+         rewards,
         login,
         register,
         logout,
@@ -1443,6 +1619,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
          removeInterpreterCredential,
          updateInterpreterAvailability,
          updateInterpreterPreferences,
+         updateAccount,
+         addAddress,
+         updateAddress,
+         removeAddress,
+         setDefaultAddress,
+         submitSupportRequest,
+         shareReferral,
       }}
     >
       {children}

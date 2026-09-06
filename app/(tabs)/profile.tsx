@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   Alert,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -19,6 +20,7 @@ import { useColors } from "@/hooks/useColors";
 interface MenuItem {
   icon: string;
   label: string;
+  value?: string;
   onPress: () => void;
   danger?: boolean;
 }
@@ -27,7 +29,7 @@ export default function ProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user, bookings, logout } = useApp();
+  const { user, bookings, logout, addresses, walletBalance, transactions, paymentPinSet } = useApp();
 
   const topPad = Platform.OS === "web" ? 20 : insets.top;
 
@@ -40,6 +42,7 @@ export default function ProfileScreen() {
     upcoming: bookings.filter(b => b.status === "upcoming").length,
     completed: bookings.filter(b => b.status === "completed").length,
   };
+  const profileCompletion = [user?.name, user?.email, user?.phone, user?.avatar].filter(Boolean).length * 25;
 
   const handleLogout = () => {
     Alert.alert("Log Out", "Are you sure you want to log out?", [
@@ -58,12 +61,29 @@ export default function ProfileScreen() {
   const menuItems: MenuItem[] = [
     {
       icon: "user",
+      label: "Account Information",
+      onPress: () => router.push("/account-information"),
+    },
+    {
+      icon: "edit-2",
       label: "Edit Profile",
-      onPress: () =>
-        Alert.alert(
-          "Coming Soon",
-          "Profile editing will be available in the next update.",
-        ),
+      onPress: () => router.push("/edit-profile"),
+    },
+    {
+      icon: "map-pin",
+      label: "Addresses",
+      onPress: () => router.push("/addresses"),
+    },
+    {
+      icon: "lock",
+      label: "Password & Security",
+      onPress: () => router.push("/password-security"),
+    },
+    {
+      icon: "shield",
+      label: "Payment PIN",
+      value: paymentPinSet ? "PIN is set" : "Set up your wallet PIN",
+      onPress: () => router.push("/payment-pin"),
     },
     {
       icon: "bell",
@@ -72,26 +92,48 @@ export default function ProfileScreen() {
     },
     {
       icon: "lock",
-      label: "Privacy & Security",
-      onPress: () =>
-        Alert.alert("Privacy", "Privacy settings coming soon."),
+      label: "Wallet & Payments",
+      value: `₦${walletBalance.toLocaleString()} balance`,
+      onPress: () => router.push("/wallet"),
     },
     {
-      icon: "credit-card",
-      label: "Wallet & Payments",
-      onPress: () => router.push("/wallet"),
+      icon: "list",
+      label: "Transactions",
+      value: `${transactions.length} transaction${transactions.length === 1 ? "" : "s"}`,
+      onPress: () => router.push("/transactions"),
     },
     {
       icon: "help-circle",
       label: "Help & Support",
-      onPress: () =>
-        Alert.alert("Support", "Contact us at support@signbee.app"),
+      value: "FAQ and contact support",
+      onPress: () => router.push("/support"),
+    },
+    {
+      icon: "gift",
+      label: "Referrals & Rewards",
+      value: "Invite friends and view rewards",
+      onPress: () => router.push("/referrals"),
+    },
+    {
+      icon: "award",
+      label: "Rewards",
+      onPress: () => router.push("/rewards"),
+    },
+    {
+      icon: "file-text",
+      label: "Terms & Conditions",
+      onPress: () => router.push("/terms"),
+    },
+    {
+      icon: "eye",
+      label: "Privacy Policy",
+      onPress: () => router.push("/privacy"),
     },
     {
       icon: "info",
-      label: "About SignBee",
+      label: "About SignBEE",
       onPress: () =>
-        Alert.alert("SignBee v1.0.0", "Connecting deaf individuals with certified sign language interpreters."),
+        Alert.alert("SignBEE v1.0.0", "Connecting deaf individuals with certified sign language interpreters."),
     },
     {
       icon: "log-out",
@@ -120,19 +162,24 @@ export default function ProfileScreen() {
           { backgroundColor: colors.greenLight, borderColor: colors.border },
         ]}
       >
-        <View
-          style={[styles.avatar, { backgroundColor: colors.primary }]}
-        >
-          <Text style={[styles.avatarText, { color: colors.navyDark }]}>
-            {user?.name?.charAt(0).toUpperCase() || "U"}
-          </Text>
-        </View>
+        {user?.avatar ? (
+          <Image source={{ uri: user.avatar }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.avatarText, { color: colors.navyDark }]}>
+              {user?.name?.charAt(0).toUpperCase() || "U"}
+            </Text>
+          </View>
+        )}
         <View>
           <Text style={[styles.userName, { color: colors.navyDark }]}>
             {user?.name || "User"}
           </Text>
           <Text style={[styles.userEmail, { color: colors.mutedForeground }]}>
             {user?.email || ""}
+          </Text>
+          <Text style={[styles.userPhone, { color: colors.mutedForeground }]}>
+            {user?.phone || "No phone number"}
           </Text>
           <View
             style={[
@@ -145,6 +192,36 @@ export default function ProfileScreen() {
             </Text>
           </View>
         </View>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.completionCard, { borderColor: colors.border, backgroundColor: colors.card }]}
+        onPress={() => router.push("/account-information")}
+      >
+        <View style={styles.completionCopy}>
+          <Text style={[styles.completionTitle, { color: colors.navyDark }]}>Profile completion</Text>
+          <Text style={[styles.completionText, { color: colors.mutedForeground }]}>
+            {profileCompletion}% complete · Add a photo and details to finish your profile.
+          </Text>
+        </View>
+        <View style={[styles.progressTrack, { backgroundColor: colors.muted }]}>
+          <View style={[styles.progressFill, { width: `${profileCompletion}%`, backgroundColor: colors.primary }]} />
+        </View>
+      </TouchableOpacity>
+
+      <View style={[styles.quickLinks, { backgroundColor: colors.greenLight }]}>
+        <TouchableOpacity style={styles.quickLink} onPress={() => router.push("/wallet")}>
+          <Feather name="credit-card" size={16} color={colors.navyDark} />
+          <Text style={[styles.quickText, { color: colors.navyDark }]}>Wallet</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickLink} onPress={() => router.push("/transactions")}>
+          <Feather name="activity" size={16} color={colors.navyDark} />
+          <Text style={[styles.quickText, { color: colors.navyDark }]}>Transactions</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.quickLink} onPress={() => router.push("/support")}>
+          <Feather name="help-circle" size={16} color={colors.navyDark} />
+          <Text style={[styles.quickText, { color: colors.navyDark }]}>Support</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.statsRow}>
@@ -206,6 +283,11 @@ export default function ProfileScreen() {
               >
                 {item.label}
               </Text>
+              {item.value ? (
+                <Text style={[styles.menuValue, { color: colors.mutedForeground }]}>
+                  {item.value}
+                </Text>
+              ) : null}
               {!item.danger && (
                 <Feather
                   name="chevron-right"
@@ -282,6 +364,7 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 26, fontFamily: "Inter_700Bold" },
   userName: { fontSize: 18, fontFamily: "Inter_700Bold", marginBottom: 2 },
   userEmail: { fontSize: 13, fontFamily: "Inter_400Regular", marginBottom: 8 },
+  userPhone: { fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 8 },
   roleBadge: {
     alignSelf: "flex-start",
     paddingHorizontal: 10,
@@ -323,5 +406,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   menuLabel: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium" },
+  menuValue: { position: "absolute", right: 44, top: 49, fontSize: 10, fontFamily: "Inter_400Regular" },
   menuDivider: { height: 1, marginHorizontal: 16 },
+  completionCard: { borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 12, flexDirection: "row", alignItems: "center" },
+  completionCopy: { flex: 1, paddingRight: 12 },
+  completionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 4 },
+  completionText: { fontSize: 10, lineHeight: 15, fontFamily: "Inter_400Regular" },
+  progressTrack: { width: 50, height: 50, borderRadius: 25, padding: 4, justifyContent: "flex-end", transform: [{ rotate: "-90deg" }] },
+  progressFill: { height: 42, borderRadius: 22 },
+  quickLinks: { borderRadius: 16, padding: 12, marginBottom: 16, flexDirection: "row", justifyContent: "space-around" },
+  quickLink: { alignItems: "center", gap: 5, minWidth: 75 },
+  quickText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
 });
