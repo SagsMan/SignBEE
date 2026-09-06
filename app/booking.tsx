@@ -1,8 +1,7 @@
 import { Feather } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,7 +14,6 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import PrimaryButton from "@/components/PrimaryButton";
-import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
 type BookingType = "In-person" | "Virtual";
@@ -37,10 +35,6 @@ export default function BookingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { interpreterId } = useLocalSearchParams<{ interpreterId: string }>();
-  const { interpreters, addBooking } = useApp();
-
-  const interpreter = interpreters.find(i => i.id === interpreterId);
 
   const [bookingType, setBookingType] = useState<BookingType>("In-person");
   const [location, setLocation] = useState("");
@@ -52,54 +46,19 @@ export default function BookingScreen() {
   const [duration, setDuration] = useState(DURATIONS[1]);
   const [purpose, setPurpose] = useState(PURPOSES[0]);
   const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom + 16;
 
-  const handleSubmit = async () => {
-    if (!date || !time) {
-      Alert.alert("Missing Info", "Please enter date and time.");
-      return;
-    }
-    if (bookingType === "In-person" && !location) {
-      Alert.alert("Missing Info", "Please enter a location.");
-      return;
-    }
-    if (bookingType === "Virtual" && !meetingLink) {
-      Alert.alert("Missing Info", "Please enter a meeting link.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await addBooking({
-        interpreterId: interpreterId || "",
-        interpreterName: interpreter?.name || "Unknown",
+  const handleFindInterpreters = () => {
+    router.push({
+      pathname: "/interpreters",
+      params: {
         type: bookingType,
         language,
-        date,
-        time,
-        duration,
-        location: bookingType === "In-person" ? location : undefined,
-        venue: bookingType === "Virtual" ? venue : undefined,
-        link: bookingType === "Virtual" ? meetingLink : undefined,
         purpose,
-        notes,
-        status: "upcoming",
-        rate: interpreter?.rate || 0,
-      });
-      Alert.alert("Success!", "Your booking has been confirmed.", [
-        {
-          text: "View Bookings",
-          onPress: () => router.replace("/(tabs)/bookings"),
-        },
-      ]);
-    } catch {
-      Alert.alert("Error", "Booking failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+      },
+    });
   };
 
   return (
@@ -323,8 +282,7 @@ export default function BookingScreen() {
       >
         <PrimaryButton
           title="Find Interpreters"
-          onPress={handleSubmit}
-          loading={loading}
+          onPress={handleFindInterpreters}
         />
       </View>
     </View>

@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Image,
   Platform,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PrimaryButton from "@/components/PrimaryButton";
 import { useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
+
+type DetailTab = "About" | "Availability" | "Reviews";
 
 const REVIEWS = [
   {
@@ -45,60 +48,66 @@ export default function InterpreterDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { interpreters } = useApp();
-  const [isFavorite, setIsFavorite] = useState(false);
+  const {
+    interpreters,
+    favoriteInterpreterIds,
+    toggleFavorite,
+  } = useApp();
+  const [activeTab, setActiveTab] = useState<DetailTab>("About");
 
-  const interpreter = interpreters.find(i => i.id === id);
-
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom + 16;
+  const interpreter = interpreters.find(item => item.id === id);
+  const topPad = Platform.OS === "web" ? 20 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 24 : insets.bottom + 12;
 
   if (!interpreter) {
     return (
       <View
         style={[
-          styles.center,
+          styles.notFound,
           { backgroundColor: colors.background, paddingTop: topPad },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
-        <Text style={[styles.notFound, { color: colors.mutedForeground }]}>
+        <Text style={[styles.notFoundText, { color: colors.mutedForeground }]}>
           Interpreter not found
         </Text>
       </View>
     );
   }
 
-  const handleBook = () => {
-    router.push({
-      pathname: "/booking",
-      params: { interpreterId: interpreter.id },
-    });
-  };
-
-  const handleMessage = () => {
-    Alert.alert("Messages", "Messaging feature coming soon!");
-  };
+  const isFavorite = favoriteInterpreterIds.includes(interpreter.id);
+  const avatarSource =
+    interpreter.avatar === "male"
+      ? require("@/assets/images/interpreter_male.png")
+      : require("@/assets/images/interpreter_female.png");
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.topBar, { paddingTop: topPad + 8 }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-          <Feather name="arrow-left" size={22} color={colors.foreground} />
-        </TouchableOpacity>
-        <Text style={[styles.topBarTitle, { color: colors.foreground }]}>
-          Interpreter Profile
-        </Text>
+    <View style={[styles.container, { backgroundColor: colors.muted }]}>
+      <View
+        style={[
+          styles.heroHeader,
+          { backgroundColor: colors.primary, paddingTop: topPad + 4 },
+        ]}
+      >
         <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => setIsFavorite(v => !v)}
+          onPress={() => router.back()}
+          style={styles.headerButton}
+          accessibilityLabel="Go back"
+        >
+          <Feather name="arrow-left" size={22} color={colors.navyDark} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => toggleFavorite(interpreter.id)}
+          style={styles.headerButton}
+          accessibilityLabel={isFavorite ? "Remove favorite" : "Add favorite"}
         >
           <Feather
             name="heart"
             size={22}
-            color={isFavorite ? colors.primary : colors.foreground}
+            color={colors.navyDark}
+            fill={isFavorite ? colors.navyDark : "transparent"}
           />
         </TouchableOpacity>
       </View>
@@ -107,152 +116,89 @@ export default function InterpreterDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: bottomPad + 100 },
+          { paddingBottom: bottomPad + 84 },
         ]}
       >
-        <View style={styles.heroCard}>
-          <View
-            style={[styles.avatar, { backgroundColor: colors.greenLight }]}
-          >
-            <Feather name="user" size={44} color={colors.navyDark} />
-          </View>
-          <Text style={[styles.interpreterName, { color: colors.navyDark }]}>
+        <View
+          style={[
+            styles.profileCard,
+            { backgroundColor: colors.background },
+          ]}
+        >
+          <Image source={avatarSource} style={styles.profileImage} />
+          <Text style={[styles.profileName, { color: colors.navyDark }]}>
             {interpreter.name}
           </Text>
-          <Text style={[styles.interpreterType, { color: colors.mutedForeground }]}>
-            {interpreter.languages.join(", ")} · {interpreter.type}
-          </Text>
           <View style={styles.ratingRow}>
-            {[1, 2, 3, 4, 5].map(s => (
-              <Feather
-                key={s}
-                name="star"
-                size={18}
-                color={s <= Math.round(interpreter.rating) ? colors.star : colors.border}
-              />
-            ))}
+            <Feather
+              name="star"
+              size={16}
+              color={colors.star}
+              fill={colors.star}
+            />
             <Text style={[styles.ratingText, { color: colors.foreground }]}>
               {" "}
-              {interpreter.rating} ({interpreter.reviews} reviews)
+              {interpreter.rating.toFixed(1)} ({interpreter.reviews} reviews)
             </Text>
           </View>
-        </View>
-
-        <View style={styles.infoCards}>
-          <InfoBadge
-            icon="dollar-sign"
-            label="Rate"
-            value={`$${interpreter.rate}/hr`}
-            colors={colors}
-          />
-          <InfoBadge
-            icon="clock"
-            label="Available"
-            value={interpreter.availability}
-            colors={colors}
-          />
-          {interpreter.location ? (
-            <InfoBadge
-              icon="map-pin"
-              label="Location"
-              value={interpreter.location}
+          <View style={styles.statRow}>
+            <ProfileStat
+              label="Hourly Rate"
+              value={`₦${interpreter.rate.toLocaleString()}`}
               colors={colors}
             />
-          ) : null}
+            <ProfileStat
+              label="Experience"
+              value={`${interpreter.experienceYears} years`}
+              colors={colors}
+            />
+            <ProfileStat
+              label="Bookings"
+              value={`${interpreter.bookingsCount}+`}
+              colors={colors}
+            />
+          </View>
         </View>
 
         <View
           style={[
-            styles.section,
-            { backgroundColor: colors.muted, borderColor: colors.border },
+            styles.tabs,
+            { backgroundColor: colors.background },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: colors.navyDark }]}>
-            About
-          </Text>
-          <Text style={[styles.bio, { color: colors.foreground }]}>
-            {interpreter.bio}
-          </Text>
-        </View>
-
-        <View style={styles.langSection}>
-          <Text style={[styles.sectionTitle, { color: colors.navyDark }]}>
-            Languages
-          </Text>
-          <View style={styles.langChips}>
-            {interpreter.languages.map(l => (
-              <View
-                key={l}
+          {(["About", "Availability", "Reviews"] as DetailTab[]).map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[
+                styles.tab,
+                activeTab === tab && { backgroundColor: colors.greenLight },
+              ]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text
                 style={[
-                  styles.langChip,
-                  { backgroundColor: colors.greenLight },
+                  styles.tabText,
+                  {
+                    color:
+                      activeTab === tab
+                        ? colors.navyDark
+                        : colors.foreground,
+                  },
                 ]}
               >
-                <Text style={[styles.langChipText, { color: colors.navyDark }]}>
-                  {l}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.reviewsSection}>
-          <Text style={[styles.sectionTitle, { color: colors.navyDark }]}>
-            Reviews
-          </Text>
-          {REVIEWS.map(r => (
-            <View
-              key={r.id}
-              style={[
-                styles.reviewCard,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <View style={styles.reviewHeader}>
-                <View
-                  style={[
-                    styles.reviewAvatar,
-                    { backgroundColor: colors.muted },
-                  ]}
-                >
-                  <Text
-                    style={[styles.reviewAvatarText, { color: colors.navyDark }]}
-                  >
-                    {r.author.charAt(0)}
-                  </Text>
-                </View>
-                <View>
-                  <Text
-                    style={[styles.reviewAuthor, { color: colors.foreground }]}
-                  >
-                    {r.author}
-                  </Text>
-                  <Text
-                    style={[styles.reviewDate, { color: colors.mutedForeground }]}
-                  >
-                    {r.date}
-                  </Text>
-                </View>
-                <View style={styles.reviewStars}>
-                  {[1, 2, 3, 4, 5].map(s => (
-                    <Feather
-                      key={s}
-                      name="star"
-                      size={12}
-                      color={s <= r.rating ? colors.star : colors.border}
-                    />
-                  ))}
-                </View>
-              </View>
-              <Text style={[styles.reviewComment, { color: colors.foreground }]}>
-                {r.comment}
+                {tab}
               </Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
+
+        {activeTab === "About" ? (
+          <AboutPanel interpreter={interpreter} colors={colors} />
+        ) : activeTab === "Availability" ? (
+          <AvailabilityPanel interpreter={interpreter} colors={colors} />
+        ) : (
+          <ReviewsPanel colors={colors} />
+        )}
       </ScrollView>
 
       <View
@@ -260,136 +206,372 @@ export default function InterpreterDetailScreen() {
           styles.bottomBar,
           {
             paddingBottom: bottomPad,
-            borderTopColor: colors.border,
             backgroundColor: colors.background,
+            borderTopColor: colors.border,
           },
         ]}
       >
         <TouchableOpacity
-          style={[styles.msgBtn, { borderColor: colors.navyDark }]}
-          onPress={handleMessage}
-          activeOpacity={0.8}
+          style={[styles.messageButton, { borderColor: colors.navyDark }]}
+          onPress={() =>
+            Alert.alert("Messages", "Messaging will be available in Phase 5.")
+          }
+          accessibilityLabel="Message interpreter"
         >
           <Feather name="message-circle" size={20} color={colors.navyDark} />
         </TouchableOpacity>
         <PrimaryButton
-          title="Book Interpreter"
-          onPress={handleBook}
-          style={styles.bookBtn}
+          title="Book Now"
+          onPress={() =>
+            router.push({
+              pathname: "/booking",
+              params: { interpreterId: interpreter.id },
+            })
+          }
+          style={styles.bookButton}
         />
       </View>
     </View>
   );
 }
 
-function InfoBadge({
-  icon,
+function ProfileStat({
   label,
   value,
   colors,
 }: {
-  icon: string;
   label: string;
   value: string;
   colors: ReturnType<typeof useColors>;
 }) {
   return (
-    <View
-      style={[
-        styles.infoBadge,
-        { backgroundColor: colors.muted, borderColor: colors.border },
-      ]}
-    >
-      <Feather name={icon as any} size={16} color={colors.navyDark} />
-      <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>
+    <View style={styles.stat}>
+      <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>
         {label}
       </Text>
-      <Text style={[styles.infoValue, { color: colors.navyDark }]}>
+      <Text style={[styles.statValue, { color: colors.foreground }]}>
         {value}
       </Text>
     </View>
   );
 }
 
+function AboutPanel({
+  interpreter,
+  colors,
+}: {
+  interpreter: NonNullable<ReturnType<typeof useApp>["interpreters"]>[number];
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View style={[styles.panel, { backgroundColor: colors.background }]}>
+      <Text style={[styles.panelTitle, { color: colors.foreground }]}>Bio</Text>
+      <Text style={[styles.bio, { color: colors.mutedForeground }]}>
+        {interpreter.bio}
+      </Text>
+
+      <DetailSection
+        icon="book-open"
+        title="Specialties"
+        colors={colors}
+        content={
+          <View style={styles.chipRow}>
+            {interpreter.specialties.map(specialty => (
+              <View
+                key={specialty}
+                style={[styles.chip, { backgroundColor: colors.muted }]}
+              >
+                <Text style={[styles.chipText, { color: colors.foreground }]}>
+                  {specialty}
+                </Text>
+              </View>
+            ))}
+          </View>
+        }
+      />
+
+      <DetailSection
+        icon="globe"
+        title="Languages"
+        colors={colors}
+        content={
+          <View style={styles.chipColumn}>
+            {interpreter.languages.map(language => (
+              <View
+                key={language}
+                style={[styles.languageChip, { backgroundColor: colors.muted }]}
+              >
+                <Text style={[styles.chipText, { color: colors.foreground }]}>
+                  {language}
+                </Text>
+              </View>
+            ))}
+          </View>
+        }
+      />
+
+      <DetailSection
+        icon="award"
+        title="Certifications"
+        colors={colors}
+        content={
+          <View style={styles.certificationList}>
+            {interpreter.certifications.map(certification => (
+              <View key={certification} style={styles.certificationRow}>
+                <Feather name="check" size={15} color={colors.success} />
+                <Text
+                  style={[
+                    styles.certificationText,
+                    { color: colors.foreground },
+                  ]}
+                >
+                  {certification}
+                </Text>
+              </View>
+            ))}
+          </View>
+        }
+      />
+    </View>
+  );
+}
+
+function AvailabilityPanel({
+  interpreter,
+  colors,
+}: {
+  interpreter: NonNullable<ReturnType<typeof useApp>["interpreters"]>[number];
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View style={[styles.panel, { backgroundColor: colors.background }]}>
+      <Text style={[styles.panelTitle, { color: colors.foreground }]}>
+        Availability
+      </Text>
+      <View
+        style={[
+          styles.availabilityBadge,
+          {
+            backgroundColor: interpreter.isAvailable
+              ? colors.greenLight
+              : colors.muted,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.statusDot,
+            {
+              backgroundColor: interpreter.isAvailable
+                ? colors.success
+                : colors.mutedForeground,
+            },
+          ]}
+        />
+        <Text style={[styles.availabilityText, { color: colors.foreground }]}>
+          {interpreter.isAvailable ? "Available now" : "Currently unavailable"}
+        </Text>
+      </View>
+      <View style={[styles.scheduleCard, { backgroundColor: colors.muted }]}>
+        <Feather name="clock" size={18} color={colors.navyDark} />
+        <View>
+          <Text style={[styles.scheduleLabel, { color: colors.mutedForeground }]}>
+            Regular availability
+          </Text>
+          <Text style={[styles.scheduleValue, { color: colors.foreground }]}>
+            {interpreter.availability}
+          </Text>
+        </View>
+      </View>
+      <Text style={[styles.availabilityNote, { color: colors.mutedForeground }]}>
+        Availability is shown in your local time. Confirm a time during booking.
+      </Text>
+    </View>
+  );
+}
+
+function ReviewsPanel({
+  colors,
+}: {
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View style={styles.reviewsSection}>
+      {REVIEWS.map(review => (
+        <View
+          key={review.id}
+          style={[
+            styles.reviewCard,
+            { backgroundColor: colors.background, borderColor: colors.border },
+          ]}
+        >
+          <View style={styles.reviewHeader}>
+            <View style={[styles.reviewAvatar, { backgroundColor: colors.muted }]}>
+              <Text style={[styles.reviewAvatarText, { color: colors.navyDark }]}>
+                {review.author.charAt(0)}
+              </Text>
+            </View>
+            <View>
+              <Text style={[styles.reviewAuthor, { color: colors.foreground }]}>
+                {review.author}
+              </Text>
+              <Text style={[styles.reviewDate, { color: colors.mutedForeground }]}>
+                {review.date}
+              </Text>
+            </View>
+            <View style={styles.reviewStars}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <Feather
+                  key={star}
+                  name="star"
+                  size={12}
+                  color={star <= review.rating ? colors.star : colors.border}
+                  fill={star <= review.rating ? colors.star : "transparent"}
+                />
+              ))}
+            </View>
+          </View>
+          <Text style={[styles.reviewComment, { color: colors.foreground }]}>
+            {review.comment}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function DetailSection({
+  icon,
+  title,
+  content,
+  colors,
+}: {
+  icon: string;
+  title: string;
+  content: React.ReactNode;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View style={styles.detailSection}>
+      <View style={styles.sectionLabel}>
+        <Feather name={icon as any} size={20} color={colors.success} />
+        <Text style={[styles.sectionLabelText, { color: colors.foreground }]}>
+          {title}
+        </Text>
+      </View>
+      {content}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  center: { flex: 1, paddingHorizontal: 20 },
-  backBtn: { width: 40, height: 40, justifyContent: "center" },
-  notFound: { fontSize: 16, fontFamily: "Inter_400Regular", marginTop: 24 },
-  topBar: {
+  notFound: { flex: 1, paddingHorizontal: 20 },
+  backButton: { width: 40, height: 40, justifyContent: "center" },
+  notFoundText: { fontSize: 16, fontFamily: "Inter_400Regular", marginTop: 24 },
+  heroHeader: {
+    height: 128,
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
   },
-  iconBtn: {
+  headerButton: {
     width: 40,
     height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
-  topBarTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
-  content: { paddingHorizontal: 20 },
-  heroCard: { alignItems: "center", paddingVertical: 24, gap: 8 },
-  avatar: {
+  content: { paddingHorizontal: 20, marginTop: -58 },
+  profileCard: {
+    borderRadius: 16,
+    alignItems: "center",
+    paddingTop: 48,
+    paddingBottom: 20,
+    paddingHorizontal: 14,
+  },
+  profileImage: {
+    position: "absolute",
+    top: -48,
     width: 96,
     height: 96,
     borderRadius: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
   },
-  interpreterName: {
-    fontSize: 22,
+  profileName: {
+    fontSize: 21,
     fontFamily: "Inter_700Bold",
-    textAlign: "center",
+    marginBottom: 4,
   },
-  interpreterType: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-  },
-  ratingRow: { flexDirection: "row", alignItems: "center" },
+  ratingRow: { flexDirection: "row", alignItems: "center", marginBottom: 24 },
   ratingText: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  infoCards: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 20 },
-  infoBadge: {
-    flex: 1,
-    minWidth: 100,
-    alignItems: "center",
-    gap: 4,
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
+  statRow: {
+    flexDirection: "row",
+    width: "100%",
+    justifyContent: "space-around",
   },
-  infoLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
-  infoValue: { fontSize: 13, fontFamily: "Inter_600SemiBold", textAlign: "center" },
-  section: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
+  stat: { alignItems: "center", minWidth: 86 },
+  statLabel: { fontSize: 11, fontFamily: "Inter_400Regular", marginBottom: 4 },
+  statValue: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  tabs: {
+    borderRadius: 14,
+    flexDirection: "row",
+    padding: 5,
+    marginTop: 28,
     marginBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    marginBottom: 8,
-  },
-  bio: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 22 },
-  langSection: { marginBottom: 20 },
-  langChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
-  langChip: {
+  tab: { flex: 1, borderRadius: 9, alignItems: "center", paddingVertical: 10 },
+  tabText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  panel: { borderRadius: 16, padding: 18, marginBottom: 20 },
+  panelTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 8 },
+  bio: { fontSize: 14, lineHeight: 22, fontFamily: "Inter_400Regular" },
+  detailSection: { marginTop: 22 },
+  sectionLabel: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
+  sectionLabelText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 8 },
+  chipText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  chipColumn: { gap: 8 },
+  languageChip: {
+    alignSelf: "flex-start",
+    borderRadius: 18,
     paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 8,
   },
-  langChipText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  certificationList: { gap: 10 },
+  certificationRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  certificationText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  availabilityBadge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  availabilityText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  scheduleCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 12,
+    padding: 14,
+  },
+  scheduleLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  scheduleValue: { fontSize: 14, fontFamily: "Inter_600SemiBold", marginTop: 3 },
+  availabilityNote: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: "Inter_400Regular",
+    marginTop: 16,
+  },
   reviewsSection: { marginBottom: 20 },
   reviewCard: {
     borderRadius: 14,
     borderWidth: 1,
     padding: 14,
-    marginTop: 10,
+    marginBottom: 10,
   },
   reviewHeader: {
     flexDirection: "row",
@@ -417,11 +599,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 14,
     borderTopWidth: 1,
     gap: 12,
   },
-  msgBtn: {
+  messageButton: {
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -429,5 +611,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  bookBtn: { flex: 1 },
+  bookButton: { flex: 1 },
 });

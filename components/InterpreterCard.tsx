@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Interpreter } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
@@ -21,6 +21,10 @@ export default function InterpreterCard({
   compact,
 }: Props) {
   const colors = useColors();
+  const avatarSource =
+    interpreter.avatar === "male"
+      ? require("@/assets/images/interpreter_male.png")
+      : require("@/assets/images/interpreter_female.png");
 
   return (
     <TouchableOpacity
@@ -31,13 +35,10 @@ export default function InterpreterCard({
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <View style={[styles.avatar, { backgroundColor: colors.muted }]}>
-        <Feather
-          name="user"
-          size={compact ? 20 : 28}
-          color={colors.mutedForeground}
-        />
-      </View>
+      <Image
+        source={avatarSource}
+        style={[styles.avatar, compact && styles.compactAvatar]}
+      />
 
       <View style={styles.info}>
         <Text
@@ -50,17 +51,16 @@ export default function InterpreterCard({
           {interpreter.languages.join(", ")} | {interpreter.type}
         </Text>
         <View style={styles.meta}>
-          <Feather name="star" size={12} color={colors.star} />
+          <Feather name="star" size={12} color={colors.primary} fill={colors.primary} />
           <Text style={[styles.rating, { color: colors.foreground }]}>
             {" "}
             {interpreter.rating}{" "}
           </Text>
           <Text style={[styles.avail, { color: colors.mutedForeground }]}>
-            {interpreter.availability}
+            {interpreter.isAvailable ? "Available now" : interpreter.availability}
           </Text>
           <Text style={[styles.rate, { color: colors.foreground }]}>
-            {" "}
-            ${interpreter.rate}/hr
+            {" "}₦{interpreter.rate.toLocaleString()}/hr
           </Text>
         </View>
       </View>
@@ -71,6 +71,7 @@ export default function InterpreterCard({
             name="heart"
             size={18}
             color={isFavorite ? colors.primary : colors.mutedForeground}
+            fill={isFavorite ? colors.primary : "transparent"}
           />
         </TouchableOpacity>
       )}
@@ -91,11 +92,10 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
     marginRight: 12,
     overflow: "hidden",
   },
+  compactAvatar: { width: 48, height: 48, borderRadius: 24 },
   info: { flex: 1 },
   name: {
     fontSize: 15,

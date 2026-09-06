@@ -22,6 +22,11 @@ export interface Interpreter {
   rating: number;
   rate: number;
   availability: string;
+  isAvailable: boolean;
+  experienceYears: number;
+  bookingsCount: number;
+  specialties: string[];
+  certifications: string[];
   avatar?: string;
   reviews: number;
   bio: string;
@@ -54,6 +59,7 @@ interface AppState {
   bookings: Booking[];
   interpreters: Interpreter[];
   pendingVerificationEmail: string | null;
+  favoriteInterpreterIds: string[];
 }
 
 interface AppContextType extends AppState {
@@ -71,6 +77,7 @@ interface AppContextType extends AppState {
   setLocationPermission: (
     status: "granted" | "denied" | "skipped",
   ) => Promise<void>;
+  toggleFavorite: (interpreterId: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -82,10 +89,16 @@ const MOCK_INTERPRETERS: Interpreter[] = [
     languages: ["ASL", "NSL"],
     type: "Virtual/In-person",
     rating: 4.2,
-    rate: 30,
+    rate: 20000,
     availability: "08:00am - 11am",
+    isAvailable: true,
+    experienceYears: 8,
+    bookingsCount: 24,
+    specialties: ["Medical", "Educational", "Business"],
+    certifications: ["ASLIN Certified", "Medical Interpreting Certificate"],
+    avatar: "female",
     reviews: 128,
-    bio: "Certified sign language interpreter with 8 years of experience in medical, legal, and community settings.",
+    bio: "Certified sign language interpreter with 8+ years of experience in medical and educational settings. I’m passionate about providing clear communication and ensuring everyone feels understood and heard.",
     location: "Lagos, Nigeria",
   },
   {
@@ -94,8 +107,14 @@ const MOCK_INTERPRETERS: Interpreter[] = [
     languages: ["BSL", "NSL"],
     type: "Virtual",
     rating: 4.2,
-    rate: 50,
+    rate: 20000,
     availability: "08:00am - 11am",
+    isAvailable: true,
+    experienceYears: 6,
+    bookingsCount: 18,
+    specialties: ["Corporate", "Education", "Business"],
+    certifications: ["NISL Certified"],
+    avatar: "male",
     reviews: 94,
     bio: "Professional BSL and NSL interpreter specializing in corporate and educational environments.",
     location: "Abuja, Nigeria",
@@ -106,8 +125,14 @@ const MOCK_INTERPRETERS: Interpreter[] = [
     languages: ["ASL", "PSL"],
     type: "In-person",
     rating: 4.8,
-    rate: 45,
+    rate: 18000,
     availability: "09:00am - 5pm",
+    isAvailable: true,
+    experienceYears: 7,
+    bookingsCount: 31,
+    specialties: ["Medical", "Legal", "Emergency"],
+    certifications: ["ASLIN Certified", "Medical Interpreting Certificate"],
+    avatar: "female",
     reviews: 203,
     bio: "Expert interpreter for medical emergencies and urgent legal situations. Available on short notice.",
     location: "Port Harcourt, Nigeria",
@@ -118,8 +143,14 @@ const MOCK_INTERPRETERS: Interpreter[] = [
     languages: ["NSL", "ASL"],
     type: "Virtual/In-person",
     rating: 4.6,
-    rate: 35,
+    rate: 15000,
     availability: "07:00am - 9pm",
+    isAvailable: false,
+    experienceYears: 5,
+    bookingsCount: 16,
+    specialties: ["Community", "Religious", "Everyday"],
+    certifications: ["NISL Certified"],
+    avatar: "male",
     reviews: 156,
     bio: "Community interpreter dedicated to making everyday life more accessible for the deaf community.",
     location: "Enugu, Nigeria",
@@ -130,8 +161,14 @@ const MOCK_INTERPRETERS: Interpreter[] = [
     languages: ["ASL", "MSL"],
     type: "Virtual",
     rating: 4.9,
-    rate: 60,
+    rate: 25000,
     availability: "10:00am - 6pm",
+    isAvailable: true,
+    experienceYears: 10,
+    bookingsCount: 42,
+    specialties: ["Academic", "Conference", "Business"],
+    certifications: ["ASLIN Certified", "Conference Interpreting Certificate"],
+    avatar: "female",
     reviews: 89,
     bio: "Award-winning interpreter with specialization in academic and conference settings.",
     location: "Kano, Nigeria",
@@ -144,6 +181,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [hasOnboarded, setHasOnboardedState] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
+  const [favoriteInterpreterIds, setFavoriteInterpreterIds] = useState<string[]>([]);
 
   useEffect(() => {
     loadState();
@@ -151,10 +189,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadState = async () => {
     try {
-      const [storedUser, storedOnboarded, storedBookings] = await Promise.all([
+      const [
+        storedUser,
+        storedOnboarded,
+        storedBookings,
+        storedFavorites,
+      ] = await Promise.all([
         AsyncStorage.getItem("user"),
         AsyncStorage.getItem("hasOnboarded"),
         AsyncStorage.getItem("bookings"),
+        AsyncStorage.getItem("favoriteInterpreterIds"),
       ]);
       if (storedUser) {
         const parsedUser = JSON.parse(storedUser) as User;
@@ -167,6 +211,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       if (storedOnboarded === "true") setHasOnboardedState(true);
       if (storedBookings) setBookings(JSON.parse(storedBookings));
+      if (storedFavorites) setFavoriteInterpreterIds(JSON.parse(storedFavorites));
     } catch {}
   };
 
@@ -219,8 +264,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       "bookings",
       "pendingVerificationEmail",
       "passwordResetEmail",
+      "favoriteInterpreterIds",
     ]);
     setBookings([]);
+    setFavoriteInterpreterIds([]);
   };
 
   const setHasOnboarded = async (val: boolean) => {
@@ -302,6 +349,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem("user", JSON.stringify(updated));
   };
 
+  const toggleFavorite = async (interpreterId: string): Promise<void> => {
+    const updated = favoriteInterpreterIds.includes(interpreterId)
+      ? favoriteInterpreterIds.filter(id => id !== interpreterId)
+      : [...favoriteInterpreterIds, interpreterId];
+    setFavoriteInterpreterIds(updated);
+    await AsyncStorage.setItem(
+      "favoriteInterpreterIds",
+      JSON.stringify(updated),
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -311,6 +369,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         bookings,
         interpreters: MOCK_INTERPRETERS,
         pendingVerificationEmail,
+        favoriteInterpreterIds,
         login,
         register,
         logout,
@@ -323,6 +382,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         completePasswordReset,
         joinWaitlist,
         setLocationPermission,
+        toggleFavorite,
       }}
     >
       {children}
