@@ -171,6 +171,29 @@ export default function HomeScreen() {
       </View>
 
       <TouchableOpacity
+        style={[styles.agentCard, { backgroundColor: colors.navyDark }]}
+        onPress={() =>
+          router.push({
+            pathname: "/agent",
+            params: { type: bookingType },
+          })
+        }
+      >
+        <View style={[styles.agentIcon, { backgroundColor: colors.primary }]}>
+          <Feather name="zap" size={18} color={colors.navyDark} />
+        </View>
+        <View style={styles.agentCopy}>
+          <Text style={[styles.agentTitle, { color: colors.primary }]}>
+            SignBee Agent
+          </Text>
+          <Text style={[styles.agentText, { color: "#FFFFFF" }]}>
+            Tell us what you need and get matched with the right interpreter.
+          </Text>
+        </View>
+        <Feather name="arrow-up-right" size={18} color={colors.primary} />
+      </TouchableOpacity>
+
+      <TouchableOpacity
         style={[styles.walletCard, { backgroundColor: colors.navyDark }]}
         onPress={() => router.push("/wallet")}
       >
@@ -360,6 +383,25 @@ const styles = StyleSheet.create({
     marginRight: -8,
     marginBottom: -22,
   },
+  agentCard: {
+    minHeight: 74,
+    borderRadius: 14,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    marginBottom: 24,
+  },
+  agentIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  agentCopy: { flex: 1 },
+  agentTitle: { fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 4 },
+  agentText: { fontSize: 10, lineHeight: 14 },
   walletCard: {
     minHeight: 106,
     borderRadius: 16,

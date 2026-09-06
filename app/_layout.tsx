@@ -39,6 +39,9 @@ function RootLayoutNav() {
       <Stack.Screen name="waitlist" />
       <Stack.Screen name="location-permission" />
       <Stack.Screen name="booking" />
+      <Stack.Screen name="agent/index" />
+      <Stack.Screen name="agent/matching" />
+      <Stack.Screen name="agent/confirmed" />
       <Stack.Screen name="payment-method" />
       <Stack.Screen name="card-payment" />
       <Stack.Screen name="card-added" />

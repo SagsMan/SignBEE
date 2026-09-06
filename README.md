@@ -37,6 +37,7 @@ SignBee is an Expo mobile app for finding, booking, and communicating with sign-
 - Individual registration, login, email-verification demo, and password-reset demo
 - Interpreter search by name, location, or language
 - Filters for all, virtual, in-person, and available-now interpreters
+- SignBee Agent request flow for urgent interpreter matching
 - Interpreter profiles with availability, specialties, certifications, reviews, favorites, and booking
 - Two-step booking for virtual or in-person appointments
 - Date, time, duration, language, purpose, notes, and optional image attachment
@@ -65,6 +66,7 @@ SignBee is an Expo mobile app for finding, booking, and communicating with sign-
 - Interpreter accept, decline, and complete actions update the shared booking record.
 - Virtual and in-person selection is carried from interpreter discovery into the booking form.
 - Interpreter profile messaging opens a real local conversation instead of a dead-end alert.
+- SignBee Agent request, triage, matching, monitoring, and message flows are available from the client home screen.
 - AsyncStorage persistence covers the local prototype state.
 - Logout clears user-specific state, including interpreter profile and earnings, to prevent device-level leakage into the next session.
 - Expo web preview starts successfully in this development environment.
@@ -149,6 +151,9 @@ Expo Router derives routes from the `app/` directory. The root stack registers t
 - `/(tabs)/index` — client home or interpreter dashboard
 - `/interpreters` — searchable interpreter list and filters
 - `/interpreter/[id]` — interpreter profile, favorites, messaging, booking
+- `/agent` — SignBee Agent request form
+- `/agent/matching` — local triage and matching state
+- `/agent/confirmed` — matched interpreter, monitoring, and message action
 - `/booking` — booking details and review
 - `/booking-confirmation` — booking confirmation
 - `/appointment/[id]` — appointment details
@@ -218,6 +223,17 @@ The discovery-to-booking path is:
 10. Reschedule, cancel, complete, and rate the appointment.
 
 New bookings are written with `status: "pending"` and `interpreterStatus: "pending"` so the interpreter side can see them as requests. Accepted jobs move to `upcoming`/`accepted`; completed jobs move to `completed`.
+
+The urgent Agent path is:
+
+1. Open SignBee Agent from the home screen.
+2. Choose In-person or Virtual.
+3. Describe the situation.
+4. Provide a location or preferred virtual platform.
+5. Submit the request.
+6. See the triage state: request read, availability filtered, and match ranked by fit.
+7. See the matched interpreter and the SignBee Agent monitoring state.
+8. Message the matched interpreter or return home.
 
 ## Interpreter experience
 
@@ -347,6 +363,7 @@ The following services are required for a production product:
 | Authentication | Local demo login/register | Auth provider, password hashing, email verification, sessions |
 | User and interpreter data | In-memory defaults + AsyncStorage | Hosted database and API |
 | Booking synchronization | Shared state on one device | Server-side booking service and conflict handling |
+| Agent matching | Local deterministic demo matching | Agent orchestration, availability search, ranking, dispatch, and replacement monitoring |
 | Payments | Local card/bank-transfer simulation | PCI-aware payment provider and server-side ledger |
 | Wallet and withdrawals | Local arithmetic | Regulated payout/payment provider and reconciliation |
 | Messaging | AsyncStorage conversations | Authenticated real-time messaging service |
@@ -370,6 +387,10 @@ The app should present these as unavailable or demo-only until the corresponding
 - [x] Search and filters
 - [x] Interpreter profile and favorites
 - [x] Profile-to-message navigation
+- [x] SignBee Agent request form
+- [x] Agent triage and matching state
+- [x] Agent matched-interpreter monitoring screen
+- [x] Agent-to-interpreter message action
 - [x] Virtual and in-person booking
 - [x] Date and time selection
 - [x] Booking review and confirmation
@@ -405,8 +426,9 @@ The app should present these as unavailable or demo-only until the corresponding
 2. The verification code is a fixed local demo value and is not emailed.
 3. AsyncStorage is shared at the device level and is not encrypted.
 4. The payment PIN uses a local demo hash and is not a substitute for secure authentication.
-5. Payment, wallet, withdrawal, support, messages, calls, notifications, referrals, and rewards do not leave the device.
-6. Interpreter availability and profile data do not synchronize between different devices.
-7. EAS project and store credentials are not present in the repository by design.
+5. Agent triage and interpreter matching are local demo behavior; they do not call an AI service or live availability/matching backend.
+6. Payment, wallet, withdrawal, support, messages, calls, notifications, referrals, and rewards do not leave the device.
+7. Interpreter availability and profile data do not synchronize between different devices.
+8. EAS project and store credentials are not present in the repository by design.
 
 These limitations are documented so a future backend phase can replace the local seams without claiming that unavailable infrastructure already exists.
